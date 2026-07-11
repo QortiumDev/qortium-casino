@@ -9,18 +9,16 @@ cd "$(dirname "$0")" && source ./lib.sh
 
 ASSET_NAME="${CHIP_NAME:-CHIP}"
 QUANTITY="${CHIP_QUANTITY:-1000000000}"
+# Qortium dropped last-reference chaining; unsigned builds need no reference.
 TIMESTAMP=$(($(date +%s) * 1000))
-ADDRESS=$(api GET "/addresses/convert/$ISSUER_PUBKEY" || true)
-REFERENCE=$(api GET "/addresses/lastreference/$ADDRESS")
 
 UNSIGNED=$(api POST /assets/issue "{
   \"timestamp\": $TIMESTAMP,
-  \"reference\": \"$REFERENCE\",
   \"fee\": \"${TX_FEE:-0}\",
   \"issuerPublicKey\": \"$ISSUER_PUBKEY\",
   \"assetName\": \"$ASSET_NAME\",
   \"description\": \"Qortium Casino free-play chip. No monetary value.\",
-  \"quantity\": $QUANTITY,
+  \"quantity\": \"$QUANTITY\",
   \"isDivisible\": false,
   \"data\": \"{}\",
   \"isUnspendable\": false

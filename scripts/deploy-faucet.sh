@@ -11,13 +11,11 @@ for v in CREATOR_PUBKEY CHIP_ASSET_ID CREATION_BYTES; do
   [ -n "$(eval echo "\${$v:-}")" ] || { echo "$v not set" >&2; exit 1; }
 done
 
+# Qortium dropped last-reference chaining; unsigned builds need no reference.
 TIMESTAMP=$(($(date +%s) * 1000))
-ADDRESS=$(api GET "/addresses/convert/$CREATOR_PUBKEY" || true)
-REFERENCE=$(api GET "/addresses/lastreference/$ADDRESS")
 
 UNSIGNED=$(api POST /at "{
   \"timestamp\": $TIMESTAMP,
-  \"reference\": \"$REFERENCE\",
   \"fee\": \"${TX_FEE:-0}\",
   \"creatorPublicKey\": \"$CREATOR_PUBKEY\",
   \"name\": \"casino-faucet-v0\",
