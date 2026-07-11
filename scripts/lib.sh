@@ -5,7 +5,9 @@
 set -euo pipefail
 
 NODE="${CASINO_NODE:-http://localhost:24891}"
-APIKEY_FILE="${CASINO_APIKEY_FILE:-$HOME/qortium/git/qortium-core/preview/apikey.txt}"
+# The RUNNING node's key (Home-launched node lives under ~/.config/qortium-core),
+# not the repo's preview/ copy — gated endpoints reject the stale repo key.
+APIKEY_FILE="${CASINO_APIKEY_FILE:-$HOME/.config/qortium-core/runtime/apikey.txt}"
 APIKEY="${CASINO_APIKEY:-$(cat "$APIKEY_FILE")}"
 
 api() { # api METHOD PATH [JSON_BODY]
