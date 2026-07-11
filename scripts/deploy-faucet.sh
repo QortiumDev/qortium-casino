@@ -18,7 +18,7 @@ REFERENCE=$(api GET "/addresses/lastreference/$ADDRESS")
 UNSIGNED=$(api POST /at "{
   \"timestamp\": $TIMESTAMP,
   \"reference\": \"$REFERENCE\",
-  \"fee\": \"${TX_FEE:-0.01}\",
+  \"fee\": \"${TX_FEE:-0}\",
   \"creatorPublicKey\": \"$CREATOR_PUBKEY\",
   \"name\": \"casino-faucet-v0\",
   \"description\": \"Qortium Casino CHIP faucet: send a MESSAGE, receive free chips.\",
@@ -27,7 +27,7 @@ UNSIGNED=$(api POST /at "{
   \"creationBytes\": \"$CREATION_BYTES\",
   \"amount\": \"${INITIAL_CHIP_FUNDING:-100000}\",
   \"assetId\": $CHIP_ASSET_ID,
-  \"nativeFeeReserve\": \"${NATIVE_FEE_RESERVE:-10}\"
+  \"nativeFeeReserve\": \"${NATIVE_FEE_RESERVE:-0}\"
 }")
 echo "unsigned: ${UNSIGNED:0:60}..." >&2
-sign_and_process "$UNSIGNED"
+mempow_sign_and_process "$UNSIGNED"

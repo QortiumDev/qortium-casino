@@ -16,7 +16,7 @@ REFERENCE=$(api GET "/addresses/lastreference/$ADDRESS")
 UNSIGNED=$(api POST /assets/issue "{
   \"timestamp\": $TIMESTAMP,
   \"reference\": \"$REFERENCE\",
-  \"fee\": \"${TX_FEE:-0.01}\",
+  \"fee\": \"${TX_FEE:-0}\",
   \"issuerPublicKey\": \"$ISSUER_PUBKEY\",
   \"assetName\": \"$ASSET_NAME\",
   \"description\": \"Qortium Casino free-play chip. No monetary value.\",
@@ -26,4 +26,4 @@ UNSIGNED=$(api POST /assets/issue "{
   \"isUnspendable\": false
 }")
 echo "unsigned: ${UNSIGNED:0:60}..." >&2
-sign_and_process "$UNSIGNED"
+mempow_sign_and_process "$UNSIGNED"

@@ -18,13 +18,18 @@ api() { # api METHOD PATH [JSON_BODY]
   fi
 }
 
-# Sign an unsigned base58 tx with $SIGNER_PRIVATE_KEY, then broadcast it.
-sign_and_process() { # sign_and_process UNSIGNED_BASE58
+# Compute the MemPoW fee-alternative nonce (Previewnet has no native coin yet, so
+# txs carry fee=0 + nonce), sign with $SIGNER_PRIVATE_KEY, then broadcast.
+mempow_sign_and_process() { # mempow_sign_and_process UNSIGNED_BASE58
   local unsigned="$1"
   [ -n "${SIGNER_PRIVATE_KEY:-}" ] || { echo "SIGNER_PRIVATE_KEY not set" >&2; exit 1; }
-  local signed
+  local with_nonce signed
+  echo "computing mempow nonce..." >&2
+  with_nonce=$(curl -sS -X POST "$NODE/transactions/mempow/compute" \
+    -H "X-API-KEY: $APIKEY" -H "Content-Type: text/plain" -d "$unsigned")
+  echo "nonce done: ${with_nonce:0:50}..." >&2
   signed=$(api POST /transactions/sign \
-    "{\"privateKey\":\"$SIGNER_PRIVATE_KEY\",\"transactionBytes\":\"$unsigned\"}")
-  echo "signed tx: ${signed:0:60}..." >&2
+    "{\"privateKey\":\"$SIGNER_PRIVATE_KEY\",\"transactionBytes\":\"$with_nonce\"}")
+  echo "signed tx: ${signed:0:50}..." >&2
   api POST /transactions/process "$signed"
 }
