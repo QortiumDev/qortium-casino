@@ -1,0 +1,171 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Q-Casino - Blackjack Demo</title>
+    <link rel="stylesheet" href="../../assets/styles.css" />
+  </head>
+  <body class="page page-blackjack">
+    <div class="bg-orb bg-orb-a" aria-hidden="true"></div>
+    <div class="bg-orb bg-orb-c" aria-hidden="true"></div>
+
+    <header class="site-header container reveal">
+      <div>
+        <a class="btn btn-ghost back-link" href="../../index.html">Back To Games</a>
+        <h1>Blackjack (Simulation Demo)</h1>
+      </div>
+      <p class="header-note">
+        Exploratory only. Uses tx-like seed data for deterministic card draws.
+      </p>
+    </header>
+
+    <main class="container blackjack-layout">
+      <section class="panel reveal">
+        <h2>One-Player Demo</h2>
+        <p>
+          This simulates one player versus dealer. Bets are local-only and not
+          submitted on-chain. Card draw order is deterministic from tx seed data,
+          with no card repeats in a hand.
+        </p>
+      </section>
+
+      <section class="panel reveal">
+        <h2>TX Seed Source</h2>
+        <p class="muted">
+          Paste tx JSON/string, or auto-generate a fresh tx-like payload per action.
+          Same seed + same actions = same hand.
+        </p>
+
+        <div class="blackjack-seed-controls">
+          <label class="checkbox-row" for="auto-seed-toggle">
+            <input id="auto-seed-toggle" type="checkbox" checked />
+            <span>Auto-generate fresh tx seed per action</span>
+          </label>
+
+          <label class="control-row control-row-stack" for="tx-seed-input">
+            <span>Tx Seed Payload</span>
+            <textarea
+              id="tx-seed-input"
+              class="seed-input"
+              rows="7"
+              placeholder="Paste tx data or generate a demo payload"
+            ></textarea>
+          </label>
+
+          <div class="button-row">
+            <button class="btn btn-primary" id="generate-seed-btn">Generate Demo TX Seed</button>
+            <button class="btn btn-ghost" id="clear-seed-btn">Clear Seed</button>
+          </div>
+
+          <p id="seed-status" class="result-line warn">Seed not set yet.</p>
+        </div>
+      </section>
+
+      <section class="panel reveal">
+        <div class="blackjack-stage">
+          <aside class="control-panel">
+            <h3>Session</h3>
+            <dl class="session-stats blackjack-session-stats">
+              <div>
+                <dt>Credits</dt>
+                <dd id="credits-value">-</dd>
+              </div>
+              <div>
+                <dt>Hands</dt>
+                <dd id="hands-value">0</dd>
+              </div>
+              <div>
+                <dt>Wins</dt>
+                <dd id="wins-value">0</dd>
+              </div>
+              <div>
+                <dt>Losses</dt>
+                <dd id="losses-value">0</dd>
+              </div>
+              <div>
+                <dt>Pushes</dt>
+                <dd id="pushes-value">0</dd>
+              </div>
+              <div>
+                <dt>Total Wagered</dt>
+                <dd id="wagered-value">-</dd>
+              </div>
+              <div>
+                <dt>Total Paid</dt>
+                <dd id="paid-value">-</dd>
+              </div>
+              <div>
+                <dt>Return</dt>
+                <dd id="return-value">0.00%</dd>
+              </div>
+            </dl>
+
+            <h3>Hand Actions</h3>
+            <p id="hand-status" class="muted">Ready for next hand.</p>
+
+            <div class="button-row">
+              <button class="btn btn-primary" id="deal-btn">Deal 1 QORT</button>
+              <button class="btn btn-ghost" id="hit-btn" disabled>Hit</button>
+              <button class="btn btn-ghost" id="stand-btn" disabled>Stand</button>
+              <button class="btn btn-ghost" id="reset-session-btn">Reset Session</button>
+            </div>
+
+            <p id="hand-result-line" class="result-line warn">No hand active.</p>
+          </aside>
+
+          <div class="blackjack-table">
+            <article class="blackjack-hand-card">
+              <div class="blackjack-hand-head">
+                <h3>Dealer</h3>
+                <span id="dealer-total" class="status-pill status-live">Total: -</span>
+              </div>
+              <div id="dealer-cards" class="cards-row">
+                <span class="card-chip card-chip-empty">No cards</span>
+              </div>
+            </article>
+
+            <article class="blackjack-hand-card">
+              <div class="blackjack-hand-head">
+                <h3>Player</h3>
+                <span id="player-total" class="status-pill status-live">Total: -</span>
+              </div>
+              <div id="player-cards" class="cards-row">
+                <span class="card-chip card-chip-empty">No cards</span>
+              </div>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel reveal">
+        <h2>Deterministic Draw Trace</h2>
+        <div class="table-wrap">
+          <table class="matrix-table">
+            <thead>
+              <tr>
+                <th>Hand</th>
+                <th>Draw</th>
+                <th>Action</th>
+                <th>Tx Hash</th>
+                <th>Pick</th>
+                <th>Card</th>
+              </tr>
+            </thead>
+            <tbody id="trace-body">
+              <tr>
+                <td colspan="6" class="muted">No draws yet.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="muted small-note">
+          Pick format is <span class="mono">index/remaining-before</span>. Draws use
+          rejection sampling for unbiased index selection.
+        </p>
+      </section>
+    </main>
+
+    <script type="module" src="./blackjack-demo.js"></script>
+  </body>
+</html>

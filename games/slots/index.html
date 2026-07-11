@@ -1,0 +1,305 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Q-Casino - Slots</title>
+    <link rel="stylesheet" href="../../assets/styles.css" />
+  </head>
+  <body class="page page-slots">
+    <div class="bg-orb bg-orb-a" aria-hidden="true"></div>
+    <div class="bg-orb bg-orb-c" aria-hidden="true"></div>
+
+    <header class="site-header container reveal">
+      <div>
+        <a class="btn btn-ghost back-link" href="../../index.html">Back To Games</a>
+        <h1>Slots</h1>
+      </div>
+      <p class="header-note">Hybrid settlement demo: queued pulls, anchor depth, then deterministic settle.</p>
+    </header>
+
+    <main class="container slots-layout">
+      <section class="panel reveal">
+        <h2>Available Slot Machines</h2>
+        <div class="machine-list">
+          <article class="machine-card machine-card-active" id="machine-demo">
+            <div class="machine-top">
+              <h3>Demo Machine v1-3R (Hybrid)</h3>
+              <span class="status-pill status-live">Active Demo</span>
+            </div>
+            <p class="machine-meta">Simulates PAYMENT, PULL, and CASHOUT tx lifecycle without broadcasting txs.</p>
+            <dl class="machine-stats">
+              <div>
+                <dt>Reels</dt>
+                <dd>3</dd>
+              </div>
+              <div>
+                <dt>RTP Profile</dt>
+                <dd>Standard</dd>
+              </div>
+              <div>
+                <dt>Entropy K</dt>
+                <dd>2</dd>
+              </div>
+              <div>
+                <dt>Queue Capacity</dt>
+                <dd>4</dd>
+              </div>
+            </dl>
+            <button class="btn btn-primary" id="load-demo-btn">Use This Demo Machine</button>
+          </article>
+        </div>
+      </section>
+
+      <section class="panel reveal">
+        <h2>Chain Tip Sync (Read-Only)</h2>
+        <p>
+          This simulator reads real block heights/signatures from Core API for timing and entropy anchoring,
+          but all game transactions stay local in this browser session.
+        </p>
+        <div class="roulette-controls">
+          <label class="control-row" for="api-base-input">
+            <span>Core API Base (optional)</span>
+            <input
+              id="api-base-input"
+              type="text"
+              placeholder="Leave empty for relative /blocks/* endpoints"
+            />
+          </label>
+          <div class="button-row">
+            <button class="btn btn-primary" id="sync-tip-btn">Sync Tip</button>
+            <button class="btn btn-ghost" id="clear-base-btn">Use Relative API</button>
+          </div>
+          <label class="checkbox-row" for="auto-refresh-toggle">
+            <input id="auto-refresh-toggle" type="checkbox" checked />
+            <span>Auto-refresh every 15 seconds</span>
+          </label>
+          <p id="slot-status" class="result-line warn">Waiting for first tip fetch.</p>
+        </div>
+
+        <dl class="machine-stats roulette-block-stats">
+          <div>
+            <dt>Tip Height</dt>
+            <dd id="tip-height">-</dd>
+          </div>
+          <div>
+            <dt>Tip Time</dt>
+            <dd id="tip-time">-</dd>
+          </div>
+          <div>
+            <dt>Tip Signature Prefix</dt>
+            <dd id="tip-signature" class="mono">-</dd>
+          </div>
+          <div>
+            <dt>Machine Status</dt>
+            <dd id="machine-status">Select the demo machine to start.</dd>
+          </div>
+        </dl>
+      </section>
+
+      <section class="panel reveal">
+        <div class="play-head">
+          <h2>Play Slot (Tx Lifecycle Simulation)</h2>
+          <p id="result-line" class="result-line warn">Load demo machine, then fund with PAYMENT.</p>
+        </div>
+
+        <div class="slot-stage">
+          <div class="reel-window" aria-label="Slot reels">
+            <div class="payline-label">Center Payline</div>
+
+            <div class="reel-column" data-reel="0">
+              <div class="symbol-cell" data-pos="top">-</div>
+              <div class="symbol-cell symbol-payline" data-pos="mid">-</div>
+              <div class="symbol-cell" data-pos="bot">-</div>
+            </div>
+
+            <div class="reel-column" data-reel="1">
+              <div class="symbol-cell" data-pos="top">-</div>
+              <div class="symbol-cell symbol-payline" data-pos="mid">-</div>
+              <div class="symbol-cell" data-pos="bot">-</div>
+            </div>
+
+            <div class="reel-column" data-reel="2">
+              <div class="symbol-cell" data-pos="top">-</div>
+              <div class="symbol-cell symbol-payline" data-pos="mid">-</div>
+              <div class="symbol-cell" data-pos="bot">-</div>
+            </div>
+          </div>
+
+          <aside class="control-panel">
+            <h3>Session + Settlement State</h3>
+            <dl class="session-stats">
+              <div>
+                <dt>Wallet Credits</dt>
+                <dd id="wallet-value">3000</dd>
+              </div>
+              <div>
+                <dt>Session Credit</dt>
+                <dd id="session-credit-value">0</dd>
+              </div>
+              <div>
+                <dt>AT Balance</dt>
+                <dd id="at-balance-value">20000</dd>
+              </div>
+              <div>
+                <dt>House Owned</dt>
+                <dd id="house-owned-value">20000</dd>
+              </div>
+              <div>
+                <dt>Safe House</dt>
+                <dd id="safe-house-value">19995</dd>
+              </div>
+              <div>
+                <dt>Effective Max Bet</dt>
+                <dd id="effective-max-bet-value">9</dd>
+              </div>
+              <div>
+                <dt>Pending Pulls</dt>
+                <dd id="queue-size-value">0</dd>
+              </div>
+              <div>
+                <dt>Deadline Height</dt>
+                <dd id="deadline-value">-</dd>
+              </div>
+              <div>
+                <dt>Settlement State</dt>
+                <dd id="settlement-state-value">idle</dd>
+              </div>
+              <div>
+                <dt>Anchor Tx</dt>
+                <dd id="anchor-tx-value" class="mono">-</dd>
+              </div>
+              <div>
+                <dt>Anchor Ready</dt>
+                <dd id="anchor-ready-value">-</dd>
+              </div>
+              <div>
+                <dt>0x0308 Second Call</dt>
+                <dd id="anchor-second-call-value">-</dd>
+              </div>
+              <div>
+                <dt>Total Pulls</dt>
+                <dd id="pulls-value">0</dd>
+              </div>
+              <div>
+                <dt>Total Wagered</dt>
+                <dd id="wagered-value">0</dd>
+              </div>
+              <div>
+                <dt>Total Paid</dt>
+                <dd id="paid-value">0</dd>
+              </div>
+              <div>
+                <dt>Session Return</dt>
+                <dd id="return-value">0.00%</dd>
+              </div>
+            </dl>
+
+            <label class="control-row" for="payment-input">
+              <span>PAYMENT Amount</span>
+              <input id="payment-input" type="number" min="1" step="1" value="100" />
+            </label>
+
+            <label class="control-row" for="bet-input">
+              <span>PULL Bet</span>
+              <input id="bet-input" type="number" min="1" max="100" step="1" value="1" />
+            </label>
+
+            <div class="button-row">
+              <button class="btn btn-primary" id="fund-btn" disabled>Submit PAYMENT</button>
+              <button class="btn btn-primary" id="pull-btn" disabled>Submit PULL</button>
+              <button class="btn btn-ghost" id="cashout-btn" disabled>Submit CASHOUT</button>
+              <button class="btn btn-ghost" id="reset-btn">Reset Sim</button>
+            </div>
+          </aside>
+        </div>
+      </section>
+
+      <section class="panel reveal">
+        <h2>Transaction Log (Local, Not Broadcast)</h2>
+        <div class="table-wrap">
+          <table class="matrix-table">
+            <thead>
+              <tr>
+                <th>Tx</th>
+                <th>Type</th>
+                <th>Payload</th>
+                <th>Mempool Tip</th>
+                <th>Confirm Height</th>
+                <th>Status</th>
+                <th>Detail</th>
+              </tr>
+            </thead>
+            <tbody id="tx-log-body">
+              <tr>
+                <td colspan="7" class="muted">No local transactions yet.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="panel reveal">
+        <h2>Settled Pull History</h2>
+        <div class="table-wrap">
+          <table class="matrix-table">
+            <thead>
+              <tr>
+                <th>Pull</th>
+                <th>Tx</th>
+                <th>Confirmed</th>
+                <th>Settled</th>
+                <th>Anchor/Epoch</th>
+                <th>Center Line</th>
+                <th>Outcome</th>
+                <th>Payout</th>
+              </tr>
+            </thead>
+            <tbody id="pull-history-body">
+              <tr>
+                <td colspan="8" class="muted">No settled pulls yet.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="panel reveal">
+        <h2>Reel Setup (Template Baseline)</h2>
+        <div class="table-wrap">
+          <table class="matrix-table">
+            <thead>
+              <tr>
+                <th>Symbol</th>
+                <th>Reel 1</th>
+                <th>Reel 2</th>
+                <th>Reel 3</th>
+              </tr>
+            </thead>
+            <tbody id="reel-counts-body"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="panel reveal">
+        <h2>Paytable (x Bet)</h2>
+        <div class="table-wrap">
+          <table class="matrix-table">
+            <thead>
+              <tr>
+                <th>Combination</th>
+                <th>Payout</th>
+              </tr>
+            </thead>
+            <tbody id="paytable-body"></tbody>
+          </table>
+        </div>
+        <p class="muted small-note">
+          Precedence is enforced top-to-bottom in the table to avoid overlap.
+        </p>
+      </section>
+    </main>
+
+    <script type="module" src="./slots-demo.js"></script>
+  </body>
+</html>

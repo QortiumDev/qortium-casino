@@ -1,0 +1,274 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Q-Casino - Roulette</title>
+    <link rel="stylesheet" href="../../assets/styles.css" />
+  </head>
+  <body class="page page-roulette">
+    <div class="bg-orb bg-orb-a" aria-hidden="true"></div>
+    <div class="bg-orb bg-orb-c" aria-hidden="true"></div>
+
+    <header class="site-header container reveal">
+      <div>
+        <a class="btn btn-ghost back-link" href="../../index.html">Back To Games</a>
+        <h1>Roulette</h1>
+      </div>
+      <p class="header-note">Deterministic roulette from settled (2-confirmation) blocks.</p>
+    </header>
+
+    <main class="container roulette-layout">
+      <section class="panel reveal">
+        <h2>Settled Spin (2 Confirmations)</h2>
+        <p>
+          This demo waits for 2 confirmations and only maps the settled block
+          (<span class="mono">tip height - 2</span>) to single-zero and double-zero outcomes.
+        </p>
+        <div class="roulette-controls">
+          <label class="control-row" for="api-base-input">
+            <span>Core API Base (optional)</span>
+            <input
+              id="api-base-input"
+              type="text"
+              placeholder="Leave empty for relative /blocks/* endpoints"
+            />
+          </label>
+          <div class="button-row">
+            <button class="btn btn-primary" id="spin-latest-btn">Sync Settled Spin</button>
+            <button class="btn btn-ghost" id="clear-base-btn">Use Relative API</button>
+          </div>
+          <label class="checkbox-row" for="auto-refresh-toggle">
+            <input id="auto-refresh-toggle" type="checkbox" checked />
+            <span>Auto-refresh every 15 seconds</span>
+          </label>
+          <p id="roulette-status" class="result-line warn">Waiting for first settled block fetch.</p>
+        </div>
+      </section>
+
+      <section class="panel reveal">
+        <h2>Settled Block</h2>
+        <dl class="machine-stats roulette-block-stats">
+          <div>
+            <dt>Height</dt>
+            <dd id="block-height">-</dd>
+          </div>
+          <div>
+            <dt>Timestamp</dt>
+            <dd id="block-time">-</dd>
+          </div>
+          <div>
+            <dt>Signature Prefix</dt>
+            <dd id="block-signature" class="mono">-</dd>
+          </div>
+          <div>
+            <dt>Entropy Seed</dt>
+            <dd id="block-seed" class="mono">-</dd>
+          </div>
+        </dl>
+      </section>
+
+      <section class="panel reveal">
+        <h2>Wheel Results</h2>
+        <div class="roulette-wheel-grid">
+          <article class="roulette-wheel-card">
+            <h3>Single Zero</h3>
+            <p class="muted">37 pockets: 0-36</p>
+            <div id="single-result" class="roulette-number roulette-number-idle">-</div>
+            <p class="roulette-subline">
+              Index <span id="single-index" class="mono">-</span> from deterministic hash.
+            </p>
+          </article>
+
+          <article class="roulette-wheel-card">
+            <h3>Double Zero</h3>
+            <p class="muted">38 pockets: 0, 00, 1-36</p>
+            <div id="double-result" class="roulette-number roulette-number-idle">-</div>
+            <p class="roulette-subline">
+              Index <span id="double-index" class="mono">-</span> from deterministic hash.
+            </p>
+          </article>
+        </div>
+      </section>
+
+      <section class="panel reveal">
+        <div class="play-head">
+          <h2>Simulated Roulette Bets</h2>
+          <p id="betting-status" class="muted">Waiting for chain tip sync.</p>
+        </div>
+
+        <div class="roulette-bet-stage">
+          <aside class="control-panel">
+            <h3>Session</h3>
+            <dl class="session-stats">
+              <div>
+                <dt>Credits</dt>
+                <dd id="credits-value">1000</dd>
+              </div>
+              <div>
+                <dt>Total Bets</dt>
+                <dd id="bets-value">0</dd>
+              </div>
+              <div>
+                <dt>Total Wagered</dt>
+                <dd id="wagered-value">0</dd>
+              </div>
+              <div>
+                <dt>Total Paid</dt>
+                <dd id="paid-value">0</dd>
+              </div>
+              <div>
+                <dt>Hit Rate</dt>
+                <dd id="hit-rate-value">0.00%</dd>
+              </div>
+              <div>
+                <dt>Return</dt>
+                <dd id="return-value">0.00%</dd>
+              </div>
+            </dl>
+
+            <h3>Round Window</h3>
+            <dl class="machine-stats roulette-round-stats">
+              <div>
+                <dt>Tip Height</dt>
+                <dd id="round-tip-height">-</dd>
+              </div>
+              <div>
+                <dt>Bet Close Height</dt>
+                <dd id="round-close-height">-</dd>
+              </div>
+              <div>
+                <dt>Entropy Height</dt>
+                <dd id="round-entropy-height">-</dd>
+              </div>
+              <div>
+                <dt>Settles At Tip</dt>
+                <dd id="round-settle-tip-height">-</dd>
+              </div>
+            </dl>
+
+            <label class="control-row" for="bet-wheel-select">
+              <span>Wheel</span>
+              <select id="bet-wheel-select">
+                <option value="single">Single Zero</option>
+                <option value="double" selected>Double Zero</option>
+              </select>
+            </label>
+
+            <label class="control-row" for="bet-type-select">
+              <span>Bet Type</span>
+              <select id="bet-type-select">
+                <option value="straight">Straight Up</option>
+                <option value="red">Red</option>
+                <option value="black">Black</option>
+                <option value="odd">Odd</option>
+                <option value="even">Even</option>
+                <option value="low">1-18</option>
+                <option value="high">19-36</option>
+                <option value="dozen1">1st Dozen</option>
+                <option value="dozen2">2nd Dozen</option>
+                <option value="dozen3">3rd Dozen</option>
+              </select>
+            </label>
+
+            <label class="control-row" for="bet-target-input">
+              <span>Straight Pick</span>
+              <input
+                id="bet-target-input"
+                type="text"
+                value="17"
+                placeholder="0-36 or 00"
+              />
+            </label>
+
+            <label class="control-row" for="bet-amount-input">
+              <span>Bet Amount</span>
+              <input id="bet-amount-input" type="number" min="1" max="100" step="1" value="1" />
+            </label>
+
+            <div class="button-row">
+              <button class="btn btn-primary" id="place-bet-btn" disabled>Place Bet</button>
+              <button class="btn btn-ghost" id="reset-session-btn">Reset Session</button>
+            </div>
+
+            <p id="bet-result-line" class="result-line warn">Sync tip height to place a bet.</p>
+          </aside>
+
+          <div class="roulette-log-grid">
+            <div>
+              <h3>Pending Bets</h3>
+              <div class="table-wrap">
+                <table class="matrix-table">
+                  <thead>
+                    <tr>
+                      <th>Bet</th>
+                      <th>Placed</th>
+                      <th>Round</th>
+                      <th>Selection</th>
+                      <th>Amount</th>
+                    </tr>
+                  </thead>
+                  <tbody id="pending-bets-body">
+                    <tr>
+                      <td colspan="5" class="muted">No pending bets.</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <div>
+              <h3>Settled Bet Log</h3>
+              <div class="table-wrap">
+                <table class="matrix-table">
+                  <thead>
+                    <tr>
+                      <th>Bet</th>
+                      <th>Settled</th>
+                      <th>Entropy</th>
+                      <th>Result</th>
+                      <th>Payout</th>
+                    </tr>
+                  </thead>
+                  <tbody id="settled-bets-body">
+                    <tr>
+                      <td colspan="5" class="muted">No settled bets yet.</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel reveal">
+        <h2>Settled Spins</h2>
+        <div class="table-wrap">
+          <table class="matrix-table">
+            <thead>
+              <tr>
+                <th>Block</th>
+                <th>Block Time</th>
+                <th>Detected Time</th>
+                <th>Signature</th>
+                <th>Single Zero</th>
+                <th>Double Zero</th>
+              </tr>
+            </thead>
+            <tbody id="spin-history-body">
+              <tr>
+                <td colspan="6" class="muted">No spins yet.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="muted small-note">
+          Pending tip values are intentionally hidden. Results are logged only when the
+          block is 2 confirmations deep.
+        </p>
+      </section>
+    </main>
+    <script type="module" src="./roulette-demo.js"></script>
+  </body>
+</html>
