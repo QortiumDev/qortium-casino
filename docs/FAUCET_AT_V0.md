@@ -54,6 +54,14 @@ MESSAGE to the AT address → AT pays them a fixed CHIP grant. Per-user rate lim
   shutdown, and low-balance pause. Step budget sanity: `maxStepsPerRound=500`,
   `stepsPerFunctionCall=10`.
 
+## Claim transaction notes
+- Claims are MESSAGE txs with fee=0 and MESSAGE's own built-in MemPoW nonce
+  (confirmable difficulty 12 / 8MiB) — use `scripts/claim-chips.sh`. MESSAGE txs only
+  *confirm* when the recipient is an AT address (core `isConfirmable()`); a MESSAGE to a
+  regular Q-address sits unconfirmed until expiry by design.
+- Deploying this AT requires core >= 1.4.1 and Previewnet height >= 60000
+  (`deployAtWorkingAssetHeight` feature trigger; see QortiumDev/qortium-core#119).
+
 ## Roadmap
 - v1: per-user cooldown via ring buffer of (address-hash, last-claim-timestamp) in AT
   data (OK for ~100 claimants; scan cost spans blocks as it grows).
