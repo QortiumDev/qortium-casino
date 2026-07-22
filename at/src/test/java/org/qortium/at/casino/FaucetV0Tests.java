@@ -263,7 +263,7 @@ public class FaucetV0Tests {
         }
 
         @Override
-        public void payAmountToB(long amount, MachineState state) {
+        public long payAmountToB(long amount, MachineState state) {
             throw new AssertionError("Faucet must not make a native payment before FIN");
         }
 

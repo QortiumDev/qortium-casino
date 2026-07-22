@@ -11,7 +11,7 @@
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <maven.compiler.release>11</maven.compiler.release>
-        <ciyam-at.version>1b731d1</ciyam-at.version>
+        <ciyam-at.version>33df17d</ciyam-at.version>
         <junit.version>4.13.2</junit.version>
     </properties>
 
@@ -24,7 +24,7 @@
 
     <dependencies>
         <dependency>
-            <groupId>com.github.QuickMythril</groupId>
+            <groupId>com.github.QortiumDev</groupId>
             <artifactId>AT</artifactId>
             <version>${ciyam-at.version}</version>
         </dependency>
