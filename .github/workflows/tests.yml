@@ -1,0 +1,43 @@
+name: Tests
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+permissions:
+  contents: read
+
+jobs:
+  maven:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set up Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: maven
+          cache-dependency-path: at/pom.xml
+
+      # The AT dependency is the exact consensus artifact qortium-core vendors.
+      # Installing it directly keeps CI deterministic and byte-identical to the
+      # jar Core ships, instead of trusting a JitPack rebuild.
+      - name: Install pinned CIYAM AT runtime
+        run: |
+          base=https://raw.githubusercontent.com/QortiumDev/qortium-core/main/lib/com/github/QortiumDev/AT/33df17d
+          curl -fsSLO "$base/AT-33df17d.jar"
+          curl -fsSLO "$base/AT-33df17d.pom"
+          echo "2f40ee7acfdeaa1dfc35615a6ba7870dcc4e85977d3e9e3a1b7ad6bcef340f3b  AT-33df17d.jar" | sha256sum -c -
+          mvn -B install:install-file -Dfile=AT-33df17d.jar -DpomFile=AT-33df17d.pom
+
+      - name: Build and test
+        run: mvn -B clean verify -DskipTests=false --file at/pom.xml
+
+      - name: Verify canonical creation bytes are committed
+        run: |
+          test -s at/faucet-v0-creation-bytes.txt
+          test -s at/faucet-v1-creation-bytes.txt
