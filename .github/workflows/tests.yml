@@ -37,7 +37,8 @@ jobs:
       - name: Build and test
         run: mvn -B clean verify -DskipTests=false --file at/pom.xml
 
-      - name: Verify canonical creation bytes are committed
+      - name: Verify canonical creation bytes are non-empty
         run: |
-          test -s at/faucet-v0-creation-bytes.txt
-          test -s at/faucet-v1-creation-bytes.txt
+          files=$(git ls-files 'at/*creation-bytes.txt')
+          test -n "$files"
+          for f in $files; do test -s "$f"; done
