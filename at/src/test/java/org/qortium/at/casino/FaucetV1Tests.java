@@ -11,26 +11,37 @@ import org.ciyam.at.OpCode;
 import org.ciyam.at.Timestamp;
 import org.junit.Test;
 
+import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
 /**
- * MachineState tests with an in-memory implementation of the Qortium platform functions.
+ * MachineState tests with an in-memory implementation of the Qortium platform functions,
+ * including the persistent AT map with a configurable entry cap
+ * (cap-rejected SET is a silent no-op, matching Core).
  */
-public class FaucetV0Tests {
+public class FaucetV1Tests {
 
-    private static final long CHIP_ASSET_ID = 42L;
-    private static final long GRANT = FaucetV0.DEFAULT_GRANT_AMOUNT;
+    private static final long SMPL_ASSET_ID = 3L;
+    private static final long GRANT = FaucetV1.DEFAULT_GRANT_AMOUNT;
 
     @Test
-    public void message_from_user_pays_exact_grant_amount() {
-        FaucetHarness harness = new FaucetHarness(GRANT);
+    public void first_claim_pays_exactly_one_smpl_and_records_marker() {
+        FaucetHarness harness = new FaucetHarness(GRANT * 5);
         harness.start();
 
         harness.api.addTransaction(API.ATTransactionType.MESSAGE, "Alice");
@@ -38,47 +49,103 @@ public class FaucetV0Tests {
 
         assertEquals(1, harness.api.payments.size());
         assertPayment(harness.api.payments.get(0), "Alice", GRANT);
-        assertEquals(0L, harness.api.assetBalance);
+        assertEquals(100_000_000L, harness.api.payments.get(0).amount);
+        assertEquals(GRANT * 4, harness.api.assetBalance);
+        assertEquals(Long.valueOf(FaucetV1.CLAIM_MARKER), harness.api.mapValue(claimKey("Alice")));
     }
 
     @Test
-    public void two_messages_from_two_users_both_get_paid() {
-        FaucetHarness harness = new FaucetHarness(GRANT * 2);
+    public void second_claim_from_same_account_is_ignored() {
+        FaucetHarness harness = new FaucetHarness(GRANT * 5);
+        harness.start();
+
+        harness.api.addTransaction(API.ATTransactionType.MESSAGE, "Alice");
+        harness.executeRound();
+        harness.api.addTransaction(API.ATTransactionType.MESSAGE, "Alice");
+        harness.executeRound();
+
+        assertEquals(1, harness.api.payments.size());
+        assertPayment(harness.api.payments.get(0), "Alice", GRANT);
+        assertEquals(GRANT * 4, harness.api.assetBalance);
+        assertEquals(Long.valueOf(FaucetV1.CLAIM_MARKER), harness.api.mapValue(claimKey("Alice")));
+        assertEquals(1, harness.api.map.size());
+    }
+
+    @Test
+    public void distinct_accounts_each_get_exactly_one_grant() {
+        FaucetHarness harness = new FaucetHarness(GRANT * 5);
         harness.start();
 
         harness.api.addTransaction(API.ATTransactionType.MESSAGE, "Alice");
         harness.api.addTransaction(API.ATTransactionType.MESSAGE, "Bob");
-        harness.executeRound();
+        // Two claims exceed one 500-step round, so the machine is force-slept mid-way
+        // and the second claim completes in the next round — settle across rounds.
+        harness.settle();
 
         assertEquals(2, harness.api.payments.size());
         assertPayment(harness.api.payments.get(0), "Alice", GRANT);
         assertPayment(harness.api.payments.get(1), "Bob", GRANT);
-        assertEquals(0L, harness.api.assetBalance);
+        assertEquals(GRANT * 3, harness.api.assetBalance);
+        assertEquals(Long.valueOf(FaucetV1.CLAIM_MARKER), harness.api.mapValue(claimKey("Alice")));
+        assertEquals(Long.valueOf(FaucetV1.CLAIM_MARKER), harness.api.mapValue(claimKey("Bob")));
     }
 
     @Test
-    public void low_balance_skips_claim_and_later_top_up_resumes_payouts() {
+    public void unfunded_claim_leaves_no_marker_and_same_account_succeeds_after_top_up() {
         FaucetHarness harness = new FaucetHarness(GRANT - 1);
         harness.start();
 
         harness.api.addTransaction(API.ATTransactionType.MESSAGE, "Alice");
         harness.executeRound();
 
+        // Ignored without a marker: the account must never be marked claimed-but-unpaid.
         assertTrue(harness.api.payments.isEmpty());
+        assertNull(harness.api.mapValue(claimKey("Alice")));
+        assertTrue(harness.api.map.isEmpty());
         assertFalse(harness.state.isFinished());
         assertTrue(harness.state.isSleeping());
 
         harness.api.assetBalance += GRANT;
+        harness.api.addTransaction(API.ATTransactionType.MESSAGE, "Alice");
+        harness.executeRound();
+
+        assertEquals(1, harness.api.payments.size());
+        assertPayment(harness.api.payments.get(0), "Alice", GRANT);
+        assertEquals(Long.valueOf(FaucetV1.CLAIM_MARKER), harness.api.mapValue(claimKey("Alice")));
+    }
+
+    @Test
+    public void cap_full_claim_pays_nothing_and_leaves_no_marker_until_cap_is_raised() {
+        FaucetHarness harness = new FaucetHarness(GRANT * 5);
+        harness.api.mapEntryCap = 1;
+        harness.start();
+
+        harness.api.addTransaction(API.ATTransactionType.MESSAGE, "Alice");
+        harness.executeRound();
+        assertEquals(1, harness.api.payments.size());
+
+        // Cap now full: Bob's SET is silently rejected, so the readback guard must block payment.
         harness.api.addTransaction(API.ATTransactionType.MESSAGE, "Bob");
         harness.executeRound();
 
         assertEquals(1, harness.api.payments.size());
-        assertPayment(harness.api.payments.get(0), "Bob", GRANT);
-        assertEquals(GRANT - 1, harness.api.assetBalance);
+        assertNull(harness.api.mapValue(claimKey("Bob")));
+        assertEquals(1, harness.api.map.size());
+        assertEquals(GRANT * 4, harness.api.assetBalance);
+        assertFalse(harness.state.isFinished());
+
+        // Governance raises the cap: Bob can claim now because no marker was recorded.
+        harness.api.mapEntryCap = 2;
+        harness.api.addTransaction(API.ATTransactionType.MESSAGE, "Bob");
+        harness.executeRound();
+
+        assertEquals(2, harness.api.payments.size());
+        assertPayment(harness.api.payments.get(1), "Bob", GRANT);
+        assertEquals(Long.valueOf(FaucetV1.CLAIM_MARKER), harness.api.mapValue(claimKey("Bob")));
     }
 
     @Test
-    public void creator_message_returns_all_chip_and_finishes() {
+    public void creator_message_sweeps_balance_and_finishes() {
         FaucetHarness harness = new FaucetHarness(GRANT * 3 + 7);
         harness.start();
 
@@ -90,6 +157,7 @@ public class FaucetV0Tests {
         assertPayment(harness.api.payments.get(0), FaucetTestAPI.CREATOR, GRANT * 3 + 7);
         assertEquals(0L, harness.api.assetBalance);
         assertTrue(harness.api.nativeRemainderReturned);
+        assertTrue("Shutdown must not write any claim marker", harness.api.map.isEmpty());
     }
 
     @Test
@@ -101,23 +169,72 @@ public class FaucetV0Tests {
         harness.executeRound();
 
         assertTrue(harness.api.payments.isEmpty());
+        assertTrue(harness.api.map.isEmpty());
         assertFalse(harness.state.isFinished());
         assertEquals(GRANT, harness.api.assetBalance);
     }
 
+    @Test
+    public void successful_claim_round_stays_under_step_budget_with_margin() {
+        FaucetHarness harness = new FaucetHarness(GRANT * 5);
+        harness.start();
+
+        harness.api.addTransaction(API.ATTransactionType.MESSAGE, "Alice");
+        harness.executeRound();
+        assertEquals(1, harness.api.payments.size());
+
+        // The full claim round (wake, claim incl. the 100-step new-map-entry premium,
+        // rescan, sleep) must fit one 500-step round or a claim would split across
+        // blocks, changing same-block semantics. Measured: 448 steps.
+        int claimSteps = harness.state.getSteps();
+        assertTrue("Claim round took no steps?", claimSteps > 0);
+        assertTrue("Claim round used " + claimSteps + " steps; budget is 500 and we require margin",
+                claimSteps <= 470);
+    }
+
+    @Test
+    public void builder_output_matches_canonical_artifact() throws Exception {
+        Path artifactPath = Paths.get("faucet-v1-creation-bytes.txt");
+        assertTrue("Canonical artifact missing: " + artifactPath.toAbsolutePath(), Files.exists(artifactPath));
+
+        String base58 = null;
+        String hex = null;
+        for (String line : Files.readAllLines(artifactPath, StandardCharsets.UTF_8)) {
+            if (line.startsWith("Base58: "))
+                base58 = line.substring("Base58: ".length()).trim();
+            else if (line.startsWith("Hex: "))
+                hex = line.substring("Hex: ".length()).trim();
+        }
+
+        byte[] creationBytes = FaucetV1.buildCreationBytes(FaucetV1.DEFAULT_GRANT_AMOUNT);
+        assertEquals("Committed hex artifact has drifted from the builder", hex, FaucetV1.hexEncode(creationBytes));
+        assertEquals("Committed Base58 artifact has drifted from the builder", base58, FaucetV1.base58Encode(creationBytes));
+    }
+
     private static void assertPayment(Payment payment, String recipient, long amount) {
-        assertEquals(CHIP_ASSET_ID, payment.assetId);
+        assertEquals(SMPL_ASSET_ID, payment.assetId);
         assertEquals(recipient, payment.recipient);
         assertEquals(amount, payment.amount);
+    }
+
+    /** First 16 bytes of SHA256 over the 32-byte packed sender address, as two big-endian longs. */
+    private static MapKey claimKey(String sender) {
+        try {
+            byte[] digest = MessageDigest.getInstance("SHA-256").digest(FaucetTestAPI.encodeAddress(sender));
+            ByteBuffer byteBuffer = ByteBuffer.wrap(digest);
+            return new MapKey(byteBuffer.getLong(), byteBuffer.getLong());
+        } catch (NoSuchAlgorithmException e) {
+            throw new AssertionError(e);
+        }
     }
 
     private static class FaucetHarness {
         final FaucetTestAPI api;
         final MachineState state;
 
-        FaucetHarness(long chipBalance) {
-            this.api = new FaucetTestAPI(CHIP_ASSET_ID, chipBalance);
-            this.state = new MachineState(api, QuietLoggerFactory.INSTANCE, FaucetV0.buildCreationBytes(GRANT));
+        FaucetHarness(long smplBalance) {
+            this.api = new FaucetTestAPI(SMPL_ASSET_ID, smplBalance);
+            this.state = new MachineState(api, QuietLoggerFactory.INSTANCE, FaucetV1.buildCreationBytes(GRANT));
         }
 
         void start() {
@@ -130,6 +247,15 @@ public class FaucetV0Tests {
             state.execute();
             api.nativeFeeReserve = state.getCurrentBalance();
         }
+
+        /** Executes rounds until the AT has nothing left to do, as consecutive blocks would. */
+        void settle() {
+            int rounds = 0;
+            do {
+                assertTrue("AT did not settle within 10 rounds", ++rounds <= 10);
+                executeRound();
+            } while (!state.isFinished() && api.willExecute(state));
+        }
     }
 
     private static class FaucetTestAPI extends API {
@@ -139,6 +265,10 @@ public class FaucetV0Tests {
         private static final short GET_CONFIGURED_ASSET_ID = (short) 0x0530;
         private static final short GET_ASSET_BALANCE = (short) 0x0531;
         private static final short PAY_ASSET_AMOUNT_TO_B = (short) 0x0533;
+        private static final short GET_MAP_VALUE_KEYS_IN_A = (short) 0x0600;
+        private static final short SET_MAP_VALUE_KEYS_IN_A = (short) 0x0601;
+
+        private static final int MAP_ENTRY_STEP_COST = 100;
 
         final long configuredAssetId;
         long assetBalance;
@@ -149,6 +279,10 @@ public class FaucetV0Tests {
         int nextTransactionId;
         final List<IncomingTransaction> incomingTransactions = new ArrayList<>();
         final List<Payment> payments = new ArrayList<>();
+
+        /** In-memory stand-in for the AT's persistent map, honoring the per-AT entry cap. */
+        final Map<MapKey, Long> map = new LinkedHashMap<>();
+        int mapEntryCap = 500;
 
         FaucetTestAPI(long configuredAssetId, long assetBalance) {
             this.configuredAssetId = configuredAssetId;
@@ -176,6 +310,10 @@ public class FaucetV0Tests {
             return false;
         }
 
+        Long mapValue(MapKey key) {
+            return map.get(key);
+        }
+
         @Override
         public int getMaxStepsPerRound() {
             return 500;
@@ -186,6 +324,19 @@ public class FaucetV0Tests {
             if (opcode.value >= OpCode.EXT_FUN.value && opcode.value <= OpCode.EXT_FUN_RET_DAT_2.value)
                 return 10;
             return 1;
+        }
+
+        @Override
+        public int getOpCodeSteps(OpCode opcode, short rawFunctionCode, MachineState state) {
+            // Mirror Core: a map SET that would create a new entry is priced at the map-entry
+            // premium instead of the ordinary function-call step cost.
+            if (opcode == OpCode.EXT_FUN && rawFunctionCode == SET_MAP_VALUE_KEYS_IN_A) {
+                MapKey key = new MapKey(getA1(state), getA2(state));
+                boolean wouldCreateEntry = getA4(state) != 0 && !map.containsKey(key) && map.size() < mapEntryCap;
+                if (wouldCreateEntry)
+                    return MAP_ENTRY_STEP_COST;
+            }
+            return getOpCodeSteps(opcode);
         }
 
         @Override
@@ -310,6 +461,14 @@ public class FaucetV0Tests {
                     expectedParamCount = 2;
                     expectedReturnValue = true;
                     break;
+                case GET_MAP_VALUE_KEYS_IN_A:
+                    expectedParamCount = 0;
+                    expectedReturnValue = true;
+                    break;
+                case SET_MAP_VALUE_KEYS_IN_A:
+                    expectedParamCount = 0;
+                    expectedReturnValue = false;
+                    break;
                 default:
                     throw new IllegalFunctionCodeException("Unknown Qortium function 0x" + String.format("%04x", rawFunctionCode));
             }
@@ -345,6 +504,26 @@ public class FaucetV0Tests {
                     }
                     functionData.returnValue = amount;
                     return;
+                case GET_MAP_VALUE_KEYS_IN_A:
+                    // All-zero B addresses our own map; the faucet never reads a foreign map,
+                    // and Core returns 0 for unresolvable targets anyway.
+                    if (!isAllZero(getB(state))) {
+                        functionData.returnValue = 0L;
+                        return;
+                    }
+                    functionData.returnValue = map.getOrDefault(new MapKey(getA1(state), getA2(state)), 0L);
+                    return;
+                case SET_MAP_VALUE_KEYS_IN_A: {
+                    // Writes always target the calling AT's own map: key A1/A2, value A4,
+                    // zero deletes, and a cap-rejected create is a SILENT no-op (as in Core).
+                    MapKey key = new MapKey(getA1(state), getA2(state));
+                    long value = getA4(state);
+                    if (value == 0)
+                        map.remove(key);
+                    else if (map.containsKey(key) || map.size() < mapEntryCap)
+                        map.put(key, value);
+                    return;
+                }
                 default:
                     throw new IllegalFunctionCodeException("Unknown Qortium function");
             }
@@ -358,7 +537,14 @@ public class FaucetV0Tests {
             return null;
         }
 
-        private static byte[] encodeAddress(String address) {
+        private static boolean isAllZero(byte[] bytes) {
+            for (byte value : bytes)
+                if (value != 0)
+                    return false;
+            return true;
+        }
+
+        static byte[] encodeAddress(String address) {
             byte[] encoded = new byte[32];
             byte[] source = address.getBytes(StandardCharsets.US_ASCII);
             System.arraycopy(source, 0, encoded, 0, source.length);
@@ -370,6 +556,29 @@ public class FaucetV0Tests {
             while (length > 0 && encoded[length - 1] == 0)
                 --length;
             return new String(encoded, 0, length, StandardCharsets.US_ASCII);
+        }
+    }
+
+    private static class MapKey {
+        final long key1;
+        final long key2;
+
+        MapKey(long key1, long key2) {
+            this.key1 = key1;
+            this.key2 = key2;
+        }
+
+        @Override
+        public boolean equals(Object other) {
+            if (!(other instanceof MapKey))
+                return false;
+            MapKey otherKey = (MapKey) other;
+            return this.key1 == otherKey.key1 && this.key2 == otherKey.key2;
+        }
+
+        @Override
+        public int hashCode() {
+            return Long.hashCode(key1) * 31 + Long.hashCode(key2);
         }
     }
 
