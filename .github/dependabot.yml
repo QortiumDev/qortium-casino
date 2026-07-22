@@ -1,0 +1,24 @@
+version: 2
+updates:
+  - package-ecosystem: "maven"
+    directory: "/at"
+    target-branch: "main"
+    schedule:
+      interval: "weekly"
+    ignore:
+      - dependency-name: "*"
+        update-types:
+          - "version-update:semver-major"
+      # The CIYAM AT runtime is a consensus artifact pinned by commit; it moves
+      # only when qortium-core deliberately repins it, never via Dependabot.
+      - dependency-name: "com.github.QortiumDev:AT"
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    target-branch: "main"
+    schedule:
+      interval: "weekly"
+    ignore:
+      - dependency-name: "*"
+        update-types:
+          - "version-update:semver-major"
