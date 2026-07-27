@@ -1,5 +1,5 @@
 import { CASINO_CONFIG } from './config.js';
-import { getAccountData, getFaucetBalance, getNodeStatus, getSelectedAccount, isHome, sendClaimMessage } from './bridge.js';
+import { getAccountData, getFaucetBalance, getFaucetClaimStatus, getNodeStatus, getSelectedAccount, isHome, sendClaimMessage } from './bridge.js';
 import { blocksRemaining, formatNumber, getCampaignPhase, getClaimAvailability, normaliseTrust } from './state.js';
 
 const $ = (id) => document.getElementById(id);
@@ -10,7 +10,7 @@ const ui = Object.freeze({
   claimTitle: $('claim-title'), claimCopy: $('claim-copy'), claimButton: $('claim-button'),
 });
 
-let current = { height: null, trustStatus: 'UNVERIFIED', inHome: isHome(), account: null, phase: 'checking' };
+let current = { height: null, trustStatus: 'UNVERIFIED', inHome: isHome(), account: null, phase: 'checking', claimStatus: 'unknown' };
 
 function getHeight(status) {
   const height = Number(status?.height ?? status?.numberOfBlocks);
@@ -56,7 +56,7 @@ function render() {
     ? `${availability.reason} Bronze or higher is enforced on-chain.`
     : 'Open in Qortium Home to inspect the selected account. Bronze or higher is enforced on-chain.';
 
-  const claimCopy = current.claimSent ? ['The message is on its way.', 'Home handled approval and signing. Faucet status will arrive with the future read-only status endpoint.'] : current.claimError ? ['The chandelier coughed.', current.claimError] : {
+  const claimCopy = current.claimSent ? ['The message is on its way.', 'Home handled approval and signing. The vault will confirm it after the next refresh.'] : current.claimError ? ['The chandelier coughed.', current.claimError] : current.claimStatus === true ? ['Your SMPL already left the building.', 'This selected account has already received its one ceremonial SMPL.'] : {
     checking: ['The chandelier is calculating.', 'We are checking the current Previewnet block.'],
     countdown: ['The doors are not open yet.', 'The countdown is real. The velvet rope is realer.'],
     'coming-soon': ['The chain says go. The vault says: almost.', 'The faucet address has not been configured yet. Please admire the chrome.'],
@@ -93,6 +93,16 @@ async function refresh() {
     } catch (error) {
       console.warn('Unable to read faucet balance', error);
       current.faucetBalance = undefined;
+    }
+
+    const address = accountAddress(current.account, current.accountData);
+    if (address) {
+      try {
+        current.claimStatus = await getFaucetClaimStatus(CASINO_CONFIG.faucetAtAddress, address);
+      } catch (error) {
+        console.warn('Unable to read faucet claim marker', error);
+        current.claimStatus = 'unknown';
+      }
     }
   }
   render();

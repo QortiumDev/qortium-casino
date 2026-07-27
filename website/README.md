@@ -37,22 +37,32 @@ Open `dist/index.html` from a local static server. Its ordinary-browser
 read-only fallback targets `http://127.0.0.1:24891`; Qortium Home uses its
 configured node through the bridge instead.
 
-## Launch handoff (do not do this early)
+## Publication handoff
 
-1. Confirm the Casino publisher owns `Casino` and the deployed Faucet V1 is
-   live after block 70,000.
-2. Update `src/config.js` with the deployed faucet AT address and the actual
+1. Keep `src/config.js` unconfigured for the current pre-faucet test publish.
+   It will show the countdown now and a candid coming-soon state after block
+   70,000. The claim button remains disabled.
+2. After the Faucet V1 deploy, update `src/config.js` with the deployed faucet
+   AT address and the actual
    issued SMPL asset ID. Do not guess either value.
-3. Run the checks above, inspect the built site, and use the explicit publish
-   workflow approved for the publisher account.
+3. From a clean, reviewed `main` checkout, run the checks above and then:
 
-`npm run qdn:publish` is deliberately a guard, not an automatic publisher. It
-prints the exact identity and refuses unless a future maintainer deliberately
-replaces it with an approved, account-specific publishing workflow.
+   ```sh
+   QORTIUM_CASINO_ALLOW_PUBLISH=1 npm run qdn:publish
+   ```
+
+   The publisher reads the local Casino treasury environment, verifies the
+   synced node and the `Casino` owner, registers that name if necessary, and
+   waits for `qdn://WEBSITE/Casino/Sample` to reach `READY`. It refuses dirty
+   or non-`main` source and never publishes without the explicit arm variable.
+
+The test publication does not wait for the faucet. A later configured publish
+replaces the same `WEBSITE/Casino/Sample` resource after the deployed values
+and Core status endpoint are available.
 
 ## Product limits made visible by the site
 
 Bronze is an on-chain eligibility requirement once the Faucet V1 change lands;
-the UI never pretends its disabled state is the enforcement. Claim-history
-lookup is intentionally pending the read-only faucet-status endpoint, so the
-site never guesses that someone has already claimed from their SMPL balance.
+the UI never pretends its disabled state is the enforcement. Once Core exposes
+the read-only AT map-value endpoint, it derives the faucet's exact claim key
+for the selected address and reports whether that account has already claimed.

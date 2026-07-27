@@ -31,11 +31,12 @@ export function blocksRemaining(height, activationBlock) {
   return Math.max(0, activationBlock - (Number(height) || 0));
 }
 
-export function getClaimAvailability({ phase, inHome, trustStatus, minimumTrust }) {
+export function getClaimAvailability({ phase, inHome, trustStatus, minimumTrust, claimStatus }) {
   if (phase === 'checking') return { enabled: false, reason: 'Checking the chain before opening the vault.' };
   if (phase === 'countdown') return { enabled: false, reason: 'The contract opens at block 70,000.' };
   if (phase === 'coming-soon') return { enabled: false, reason: 'The chain is ready; the faucet is coming very soon.' };
   if (!inHome) return { enabled: false, reason: 'Open this site in Qortium Home to claim.' };
+  if (claimStatus === true) return { enabled: false, reason: 'This selected account already received its ceremonial SMPL.' };
   if (!meetsMinimumTrust(trustStatus, minimumTrust)) {
     return { enabled: false, reason: `${normaliseTrust(trustStatus)} is below the on-chain Bronze minimum.` };
   }
