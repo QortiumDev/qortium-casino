@@ -18,6 +18,7 @@ import static org.ciyam.at.OpCode.calcOffset;
  * persistent map (spec: docs/FAUCET_AT_V1_SMPL.md). The per-claim ordering is
  * consensus-critical and must not be reordered:
  * <ol>
+ * <li>require the sender's stored trust snapshot to be BRONZE or higher;</li>
  * <li>GET claim marker — nonzero means already claimed, ignore;</li>
  * <li>balance check — underfunded claims are ignored WITHOUT writing a marker;</li>
  * <li>SET marker = 1;</li>
@@ -35,12 +36,15 @@ public class FaucetV1 {
 
     /** Claim marker stored in the map; must be nonzero because a zero SET deletes the entry. */
     public static final long CLAIM_MARKER = 1L;
+    /** Stored trust-status value required to claim: BRONZE=1, SILVER=2, GOLD=3. */
+    public static final long BRONZE_TRUST_STATUS = 1L;
 
     /* Qortium platform functions. These are deliberately raw: CIYAM AT does not define them. */
     private static final short SLEEP_UNTIL_MESSAGE = (short) 0x0503;
     private static final short GET_CONFIGURED_ASSET_ID = (short) 0x0530;
     private static final short GET_ASSET_BALANCE = (short) 0x0531;
     private static final short PAY_ASSET_AMOUNT_TO_B = (short) 0x0533;
+    private static final short GET_TRUST_STATUS_FROM_ACCOUNT_IN_B = (short) 0x0522;
     private static final short GET_MAP_VALUE_KEYS_IN_A = (short) 0x0600;
     private static final short SET_MAP_VALUE_KEYS_IN_A = (short) 0x0601;
 
@@ -76,6 +80,8 @@ public class FaucetV1 {
         final int addrMapKey2 = addrCounter++;
         final int addrMapValue = addrCounter++;
         final int addrMarkerOne = addrCounter++;
+        final int addrTrustStatus = addrCounter++;
+        final int addrBronzeTrustStatus = addrCounter++;
 
         ByteBuffer dataByteBuffer = ByteBuffer.allocate(addrCounter * MachineState.VALUE_SIZE);
         dataByteBuffer.putLong(addrGrantAmount * MachineState.VALUE_SIZE, grantAmount);
@@ -83,6 +89,7 @@ public class FaucetV1 {
         dataByteBuffer.putLong(addrSenderStartIndex * MachineState.VALUE_SIZE, addrSender1);
         dataByteBuffer.putLong(addrSenderByteLength * MachineState.VALUE_SIZE, 32L);
         dataByteBuffer.putLong(addrMarkerOne * MachineState.VALUE_SIZE, CLAIM_MARKER);
+        dataByteBuffer.putLong(addrBronzeTrustStatus * MachineState.VALUE_SIZE, BRONZE_TRUST_STATUS);
 
         Integer labelSleepLoop = null;
         Integer labelTxnLoop = null;
@@ -129,6 +136,16 @@ public class FaucetV1 {
                 codeByteBuffer.put(OpCode.FIN_IMD.compile());
 
                 labelNonCreator = codeByteBuffer.position();
+                // A holds the non-creator sender and B holds the creator. Swap just long enough to
+                // query the sender's stored trust status, then restore A for the claim-key hash.
+                // This is intentionally before every map or balance mutation: UNVERIFIED (0),
+                // SUSPICIOUS (-1), and malformed (-1) senders are ignored without a marker or payout.
+                codeByteBuffer.put(OpCode.EXT_FUN.compile(FunctionCode.SWAP_A_AND_B));
+                putExtFunRet(codeByteBuffer, GET_TRUST_STATUS_FROM_ACCOUNT_IN_B, addrTrustStatus);
+                codeByteBuffer.put(OpCode.EXT_FUN.compile(FunctionCode.SWAP_A_AND_B));
+                codeByteBuffer.put(OpCode.BLT_DAT.compile(addrTrustStatus, addrBronzeTrustStatus,
+                        calcOffset(codeByteBuffer, labelTxnLoop)));
+
                 // Save the sender (still in A): A gets clobbered below and B is needed for the payment.
                 codeByteBuffer.put(OpCode.EXT_FUN_RET.compile(FunctionCode.GET_A1, addrSender1));
                 codeByteBuffer.put(OpCode.EXT_FUN_RET.compile(FunctionCode.GET_A2, addrSender2));

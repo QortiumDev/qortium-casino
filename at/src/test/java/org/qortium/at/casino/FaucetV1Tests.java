@@ -55,6 +55,39 @@ public class FaucetV1Tests {
     }
 
     @Test
+    public void bronze_and_higher_trust_statuses_receive_the_grant() {
+        for (long trustStatus : new long[] { FaucetV1.BRONZE_TRUST_STATUS, 2L, 3L }) {
+            FaucetHarness harness = new FaucetHarness(GRANT * 2);
+            harness.start();
+            harness.api.setTrustStatus("Alice", trustStatus);
+
+            harness.api.addTransaction(API.ATTransactionType.MESSAGE, "Alice");
+            harness.executeRound();
+
+            assertEquals("trust status " + trustStatus + " must be eligible", 1, harness.api.payments.size());
+            assertPayment(harness.api.payments.get(0), "Alice", GRANT);
+            assertEquals(Long.valueOf(FaucetV1.CLAIM_MARKER), harness.api.mapValue(claimKey("Alice")));
+        }
+    }
+
+    @Test
+    public void unverified_and_suspicious_claims_are_ignored_without_marker_or_payment() {
+        for (long trustStatus : new long[] { 0L, -1L }) {
+            FaucetHarness harness = new FaucetHarness(GRANT * 2);
+            harness.start();
+            harness.api.setTrustStatus("Alice", trustStatus);
+
+            harness.api.addTransaction(API.ATTransactionType.MESSAGE, "Alice");
+            harness.executeRound();
+
+            assertTrue("trust status " + trustStatus + " must not receive a payment", harness.api.payments.isEmpty());
+            assertEquals("trust status " + trustStatus + " must not drain the faucet", GRANT * 2, harness.api.assetBalance);
+            assertNull("trust status " + trustStatus + " must not write a marker", harness.api.mapValue(claimKey("Alice")));
+            assertTrue("trust status " + trustStatus + " must leave the map unchanged", harness.api.map.isEmpty());
+        }
+    }
+
+    @Test
     public void second_claim_from_same_account_is_ignored() {
         FaucetHarness harness = new FaucetHarness(GRANT * 5);
         harness.start();
@@ -183,13 +216,13 @@ public class FaucetV1Tests {
         harness.executeRound();
         assertEquals(1, harness.api.payments.size());
 
-        // The full claim round (wake, claim incl. the 100-step new-map-entry premium,
-        // rescan, sleep) must fit one 500-step round or a claim would split across
-        // blocks, changing same-block semantics. Measured: 448 steps.
+        // The full claim round (wake, trust gate, claim incl. the 100-step new-map-entry
+        // premium, rescan, sleep) must fit one 500-step round or a claim would split across
+        // blocks, changing same-block semantics. Measured: 479 steps in this flat-cost harness.
         int claimSteps = harness.state.getSteps();
         assertTrue("Claim round took no steps?", claimSteps > 0);
         assertTrue("Claim round used " + claimSteps + " steps; budget is 500 and we require margin",
-                claimSteps <= 470);
+                claimSteps <= 490);
     }
 
     @Test
@@ -265,6 +298,7 @@ public class FaucetV1Tests {
         private static final short GET_CONFIGURED_ASSET_ID = (short) 0x0530;
         private static final short GET_ASSET_BALANCE = (short) 0x0531;
         private static final short PAY_ASSET_AMOUNT_TO_B = (short) 0x0533;
+        private static final short GET_TRUST_STATUS_FROM_ACCOUNT_IN_B = (short) 0x0522;
         private static final short GET_MAP_VALUE_KEYS_IN_A = (short) 0x0600;
         private static final short SET_MAP_VALUE_KEYS_IN_A = (short) 0x0601;
 
@@ -279,6 +313,7 @@ public class FaucetV1Tests {
         int nextTransactionId;
         final List<IncomingTransaction> incomingTransactions = new ArrayList<>();
         final List<Payment> payments = new ArrayList<>();
+        final Map<String, Long> trustStatuses = new LinkedHashMap<>();
 
         /** In-memory stand-in for the AT's persistent map, honoring the per-AT entry cap. */
         final Map<MapKey, Long> map = new LinkedHashMap<>();
@@ -294,6 +329,10 @@ public class FaucetV1Tests {
             byte[] id = new byte[32];
             id[31] = (byte) ++nextTransactionId;
             incomingTransactions.add(new IncomingTransaction(id, Timestamp.toLong(currentBlockHeight, 0), type, sender));
+        }
+
+        void setTrustStatus(String address, long trustStatus) {
+            trustStatuses.put(address, trustStatus);
         }
 
         boolean willExecute(MachineState state) {
@@ -461,6 +500,10 @@ public class FaucetV1Tests {
                     expectedParamCount = 2;
                     expectedReturnValue = true;
                     break;
+                case GET_TRUST_STATUS_FROM_ACCOUNT_IN_B:
+                    expectedParamCount = 0;
+                    expectedReturnValue = true;
+                    break;
                 case GET_MAP_VALUE_KEYS_IN_A:
                     expectedParamCount = 0;
                     expectedReturnValue = true;
@@ -503,6 +546,12 @@ public class FaucetV1Tests {
                         assetBalance -= amount;
                     }
                     functionData.returnValue = amount;
+                    return;
+                case GET_TRUST_STATUS_FROM_ACCOUNT_IN_B:
+                    // Existing test claimants default to BRONZE; individual tests override this
+                    // to exercise both eligible and rejected statuses.
+                    functionData.returnValue = trustStatuses.getOrDefault(decodeAddress(getB(state)),
+                            FaucetV1.BRONZE_TRUST_STATUS);
                     return;
                 case GET_MAP_VALUE_KEYS_IN_A:
                     // All-zero B addresses our own map; the faucet never reads a foreign map,

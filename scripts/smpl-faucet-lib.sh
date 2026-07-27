@@ -107,7 +107,7 @@ smpl_is_missing_asset_response() { # JSON from GET /assets/info
 
 smpl_canonical_creation_bytes() { # REPO_ROOT
   local artifact="$1/at/faucet-v1-creation-bytes.txt" bytes hash
-  local expected_hash=4eff8a441f8312ce3bb5ececa8830cc9ebf39f74e2ff26e3b646bc4074380522
+  local expected_hash=3cd6292352232c8243753b9ec3b5c78649088981804770133f8a7cc3228aec4e
   [ -r "$artifact" ] || { smpl_fail "canonical creation-bytes artifact is missing: $artifact"; return; }
   bytes=$(sed -n 's/^Base58: //p' "$artifact")
   [[ "$bytes" =~ ^[1-9A-HJ-NP-Za-km-z]+$ ]] || { smpl_fail "canonical creation bytes are absent or invalid"; return; }
@@ -158,9 +158,9 @@ smpl_build_deploy_request() { # CREATOR_PUBKEY ASSET_ID CREATION_BYTES TIMESTAMP
   "fee": "0",
   "creatorPublicKey": "$creator_pubkey",
   "name": "casino-smpl-faucet-v1",
-  "description": "Qortium Casino SMPL faucet: one free sample per account.",
+  "description": "Qortium Casino SMPL faucet: one Bronze-or-higher free sample per account.",
   "aTType": "casino-faucet-v1",
-  "tags": "casino,faucet,smpl,exactly-once",
+  "tags": "casino,faucet,smpl,bronze,exactly-once",
   "creationBytes": "$creation_bytes",
   "amount": "$SMPL_SUPPLY",
   "assetId": $asset_id,
