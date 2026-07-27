@@ -22,7 +22,7 @@ VERIFIED_ASSET_ID=$(smpl_assert_asset_info "$ASSET_INFO")
 CREATION_BYTES=$(smpl_canonical_creation_bytes "$REPO_DIR")
 TIMESTAMP=$(($(date +%s) * 1000))
 UNSIGNED=$(smpl_build_deploy_request "$CREATOR_PUBKEY" "$SMPL_ASSET_ID" "$CREATION_BYTES" "$TIMESTAMP")
-echo "SMPL Faucet V1 deployment is valid: assetId=$SMPL_ASSET_ID, funding=$SMPL_SUPPLY SMPL, fee=0, native reserve=0." >&2
+echo "SMPL Faucet V1 deployment is valid: assetId=$SMPL_ASSET_ID, funding=$SMPL_SUPPLY SMPL, Bronze-or-higher claims only, fee=0, native reserve=0." >&2
 UNSIGNED=$(api POST /at "$UNSIGNED")
 echo "unsigned: ${UNSIGNED:0:60}..." >&2
 mempow_sign_and_process "$UNSIGNED"
