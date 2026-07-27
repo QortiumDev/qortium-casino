@@ -26,6 +26,17 @@ async function localRead(path) {
   try { return JSON.parse(text); } catch { return text; }
 }
 
+function unpackNodeRead(result) {
+  // Home's generic read bridge preserves response metadata, while ordinary
+  // browser reads return the decoded body directly. Keep the site portable
+  // without treating an HTTP error object as a successful faucet response.
+  if (result && typeof result === 'object' && Object.hasOwn(result, 'ok') && Object.hasOwn(result, 'data')) {
+    if (result.ok !== true) throw new Error(`Node read failed (${result.status ?? 'unknown'}).`);
+    return result.data;
+  }
+  return result;
+}
+
 export function isHome() {
   return typeof window.qdnRequest === 'function';
 }
@@ -47,7 +58,7 @@ export async function getAccountData() {
 export async function getFaucetBalance(address, assetId) {
   const path = `/addresses/balance/${encodeURIComponent(address)}?assetId=${encodeURIComponent(assetId)}`;
   return isHome()
-    ? qdnRequest({ action: 'FETCH_NODE_API', path, method: 'GET' })
+    ? unpackNodeRead(await qdnRequest({ action: 'FETCH_NODE_API', path, method: 'GET' }))
     : localRead(path);
 }
 
@@ -90,7 +101,7 @@ export async function getFaucetClaimStatus(faucetAtAddress, claimantAddress) {
   const [key1, key2] = await faucetClaimKeys(claimantAddress);
   const path = `/at/${encodeURIComponent(faucetAtAddress)}/map/value?key1=${key1}&key2=${key2}`;
   const entry = isHome()
-    ? await qdnRequest({ action: 'FETCH_NODE_API', path, method: 'GET' })
+    ? unpackNodeRead(await qdnRequest({ action: 'FETCH_NODE_API', path, method: 'GET' }))
     : await localRead(path);
 
   return Number(entry?.value) !== 0;
