@@ -13,7 +13,9 @@ no payment). This supersedes v0's app-side-only cooldown.
 
 ## Asset
 
-- Name `SMPL`, indivisible, supply 1,000 — will be assetId 3 (1=TIUM, 2=CHIP).
+- Name `SMPL`, indivisible, supply 1,000. Its asset ID is deliberately assigned
+  by the chain: deployment tooling must look it up by name and validate its fixed
+  properties; **never assume assetId 3**.
 - All amounts on-chain are 1e8-scaled raw longs even for indivisible assets:
   1 SMPL grant = `100_000_000` raw.
 
@@ -120,8 +122,15 @@ zero deletes; GET reads target AT address from B, all-zero B = self).
 
 ## Deployment (later, user-run)
 
-Extend `scripts/bootstrap-casino.sh`: issue SMPL (skip if present), deploy this
-AT with `assetId`=SMPL + native fee reserve, prefund remaining supply, then
-verify one live claim via a MESSAGE (fee=0, built-in MemPoW nonce, difficulty 12;
-MESSAGE only confirms to AT addresses). Deployment requires the pre-70,000 Core
-release installed network-wide and height ≥ 70,000.
+Use `scripts/bootstrap-smpl-faucet.sh` (not the CHIP-v0 bootstrap): it checks a
+fully synced **full** Core 1.6.0+ node and refuses to proceed below height 70,000;
+it then finds or issues the exact fixed SMPL asset, looks up its chain-assigned
+asset ID, and deploys only the committed canonical creation bytes. The script is
+user-run because it signs with the treasury key.
+
+The deploy request is deliberately `fee: "0"` and `nativeFeeReserve: "0"`:
+Previewnet has no native asset. It prefunds `amount: "1000"` in the API's decimal
+format, which Core converts to `100_000_000_000` raw units for the indivisible
+asset. Do **not** deploy this AT pre-trigger: a pre-70,000 map call fatally errors
+the faucet on its first claim. After confirmation, record the AT address and make
+one real MESSAGE claim only after the user has approved that live acceptance step.
