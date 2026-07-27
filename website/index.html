@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Qortium Casino is almost certainly about to open." />
+    <title>Qortium Casino — Absolutely Coming Soon</title>
+    <link rel="stylesheet" href="./src/styles.css" />
+  </head>
+  <body>
+    <div class="starfield" aria-hidden="true"></div>
+    <div class="spotlight spotlight-left" aria-hidden="true"></div>
+    <div class="spotlight spotlight-right" aria-hidden="true"></div>
+    <header class="masthead">
+      <a class="brand" href="#welcome" aria-label="Qortium Casino home">
+        <span class="brand-kicker">PREVIEWNET'S MOST</span>
+        <span class="brand-name">QORTIUM CASINO</span>
+        <span class="brand-tag">*probably*</span>
+      </a>
+      <nav aria-label="Casino sections">
+        <button class="tab active" data-tab="welcome" type="button">Grand Opening</button>
+        <button class="tab" data-tab="backroom" type="button">Developer Backroom</button>
+      </nav>
+    </header>
+
+    <main>
+      <section id="welcome" class="page active" aria-labelledby="hero-heading">
+        <div class="marquee" aria-label="Qortium Casino grand opening announcement">
+          <span>✦ RISK-FREE* EXCITEMENT ✦ ON-CHAIN GLAMOUR ✦ ONE (1) FREE SMPL ✦</span>
+        </div>
+        <div class="hero-grid">
+          <section class="hero-copy">
+            <p class="eyebrow">THE HOUSE HAS NO IDEA WHAT IT IS DOING</p>
+            <h1 id="hero-heading">A casino so tasteful,<br /><em>it hurts.</em></h1>
+            <p class="lede">A magnificent Previewnet monument to gold gradients, questionable typography, and a free ceremonial SMPL for eligible early guests.</p>
+            <div class="official-stamp">100% <span>CHAIN</span> OPERATED<br />0% <span>SUBTLE</span></div>
+          </section>
+          <section class="roulette-frame" aria-label="Decorative roulette wheel">
+            <div class="roulette">
+              <span>Q</span><span>7</span><span>0</span><span>0</span><span>0</span><span>0</span><span>!</span><span>★</span>
+            </div>
+            <p>THE WHEEL OF<br /><strong>INEVITABILITY</strong></p>
+          </section>
+        </div>
+
+        <section class="vault" aria-labelledby="vault-heading">
+          <div class="vault-header">
+            <p class="eyebrow">THE CEREMONIAL SMPL VAULT</p>
+            <h2 id="vault-heading">Free token. Extremely serious presentation.</h2>
+            <div id="phase-badge" class="phase-badge loading">Checking the velvet rope…</div>
+          </div>
+          <div class="vault-grid">
+            <article class="display-card countdown-card">
+              <p class="card-label">GRAND OPENING IN</p>
+              <strong id="block-count" class="giant-number">—</strong>
+              <p id="block-caption">Connecting to Previewnet for the block count.</p>
+              <div class="meter"><span id="progress-meter"></span></div>
+            </article>
+            <article class="display-card supply-card">
+              <p class="card-label" id="supply-label">PLANNED SMPL POOL</p>
+              <strong id="supply-count" class="giant-number">1,000</strong>
+              <p id="supply-caption">SMPL await their dramatic entrance.</p>
+              <div class="chip-row" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div>
+            </article>
+            <article class="display-card status-card">
+              <p class="card-label">SELECTED GUEST</p>
+              <strong id="account-name" class="account-name">Open in Qortium Home</strong>
+              <p id="trust-status" class="trust-status unknown">Trust status: waiting for Home</p>
+              <p id="eligibility-copy">Bronze or higher will be enforced on-chain. The bouncer is a smart contract.</p>
+            </article>
+          </div>
+          <article class="claim-console">
+            <div>
+              <p class="card-label">THE BUTTON OF DESTINY</p>
+              <h3 id="claim-title">The doors are not open yet.</h3>
+              <p id="claim-copy">The countdown is real. The velvet rope is realer.</p>
+            </div>
+            <button id="claim-button" class="claim-button" type="button" disabled>POLISHING THE BUTTON</button>
+          </article>
+          <p id="history-note" class="history-note">Claim history becomes available once the faucet status endpoint ships. This site will not guess from your wallet balance.</p>
+        </section>
+
+        <p class="fine-print">*No financial value. No implied glamour. Bronze eligibility and one claim per account are enforced by the Faucet V1 contract once it is deployed. The roulette wheel is decorative and may be emotionally unavailable.</p>
+      </section>
+
+      <section id="backroom" class="page" aria-labelledby="backroom-heading" hidden>
+        <div class="backroom-sign">AUTHORIZED PERSONS<br /><span>AND CURIOUS FUTURE DEVELOPERS</span></div>
+        <h1 id="backroom-heading">Developer Backroom</h1>
+        <p class="lede">Ideas for after the first faucet has had its very public, very shiny moment.</p>
+        <div class="future-grid">
+          <article><span>01</span><h2>Slots with opinions</h2><p>Future game concepts that are transparent about their on-chain rules instead of pretending a neon sign is an audit.</p></article>
+          <article><span>02</span><h2>Public table theatre</h2><p>Human-readable transaction stories, player lobbies, and more opportunities for impractical velvet.</p></article>
+          <article><span>03</span><h2>Better status displays</h2><p>Once safe read-only contract status exists, show real faucet history and live game state without making guesses.</p></article>
+        </div>
+        <p class="not-spec">This is a post-V1 directions board, not a V1 implementation specification. The faucet’s launch rules live in its contract and deployment review.</p>
+      </section>
+    </main>
+    <footer>QORTIUM CASINO • WEBSITE/Casino/Sample • <span>THE HOUSE IS A STATIC WEBSITE</span></footer>
+    <script type="module" src="./src/app.js"></script>
+  </body>
+</html>
