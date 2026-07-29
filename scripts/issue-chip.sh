@@ -24,4 +24,4 @@ UNSIGNED=$(api POST /assets/issue "{
   \"isUnspendable\": false
 }")
 echo "unsigned: ${UNSIGNED:0:60}..." >&2
-mempow_sign_and_process "$UNSIGNED"
+mempow_sign_and_process "$UNSIGNED" ISSUE_ASSET

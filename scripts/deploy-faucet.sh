@@ -28,4 +28,4 @@ UNSIGNED=$(api POST /at "{
   \"nativeFeeReserve\": \"${NATIVE_FEE_RESERVE:-0}\"
 }")
 echo "unsigned: ${UNSIGNED:0:60}..." >&2
-mempow_sign_and_process "$UNSIGNED"
+mempow_sign_and_process "$UNSIGNED" DEPLOY_AT

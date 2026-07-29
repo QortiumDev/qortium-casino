@@ -14,12 +14,28 @@ INFO=$(api GET /admin/info)
 HEIGHT=$(api GET /blocks/height)
 smpl_assert_node_ready "$STATUS" "$INFO" "$HEIGHT"
 
+assert_clean_deploy_slate() {
+  local confirmed_deploys unconfirmed_deploys
+  confirmed_deploys=$(api GET "/transactions/search?txType=DEPLOY_AT&confirmationStatus=CONFIRMED&limit=20&reverse=true")
+  unconfirmed_deploys=$(api GET "/transactions/unconfirmed?txType=DEPLOY_AT")
+  smpl_assert_clean_deploy_slate "$confirmed_deploys" "$unconfirmed_deploys"
+}
+
+assert_clean_deploy_slate
+PENDING_ISSUES=$(api GET "/transactions/unconfirmed?txType=ISSUE_ASSET&creator=$CASINO_TREASURY_PUBLIC_KEY")
+smpl_assert_no_pending_issue "$PENDING_ISSUES"
+
 ASSET_INFO=$(api GET "/assets/info?assetName=$SMPL_ASSET_NAME")
 if SMPL_ASSET_ID=$(smpl_assert_asset_info "$ASSET_INFO" 2>/dev/null); then
   echo "== SMPL already exists: assetId=$SMPL_ASSET_ID"
 elif smpl_is_missing_asset_response "$ASSET_INFO"; then
   echo "== SMPL is absent; issuing $SMPL_SUPPLY indivisible SMPL..."
-  ISSUER_PUBKEY="$CASINO_TREASURY_PUBLIC_KEY" "$SCRIPT_DIR/issue-smpl.sh"
+  ISSUE_RESULT=$(ISSUER_PUBKEY="$CASINO_TREASURY_PUBLIC_KEY" "$SCRIPT_DIR/issue-smpl.sh")
+  ISSUE_SIGNATURE=$(transaction_json_field "$ISSUE_RESULT" signature) || {
+    echo "SMPL issuance was not accepted with a transaction signature" >&2
+    exit 1
+  }
+  echo "== SMPL issuance submitted: signature=$ISSUE_SIGNATURE"
 
   echo "== waiting for ISSUE_ASSET confirmation..."
   ASSET_INFO=""
@@ -41,6 +57,8 @@ else
   exit 1
 fi
 
+assert_clean_deploy_slate
 echo "== deploying canonical SMPL Faucet V1, prefunded with all $SMPL_SUPPLY SMPL..."
-CREATOR_PUBKEY="$CASINO_TREASURY_PUBLIC_KEY" SMPL_ASSET_ID="$SMPL_ASSET_ID" "$SCRIPT_DIR/deploy-smpl-faucet.sh"
-echo "== deployment submitted. Wait for confirmation, then record the returned AT address before any claim test."
+AT_ADDRESS=$(CREATOR_PUBKEY="$CASINO_TREASURY_PUBLIC_KEY" SMPL_ASSET_ID="$SMPL_ASSET_ID" "$SCRIPT_DIR/deploy-smpl-faucet.sh")
+echo "== deployment submitted: atAddress=$AT_ADDRESS"
+echo "== wait for confirmation and record this exact AT address before any claim test."

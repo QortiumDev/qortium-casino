@@ -105,6 +105,65 @@ smpl_is_missing_asset_response() { # JSON from GET /assets/info
   [ "$error_code" = 601 ] # Core ApiError.INVALID_ASSET_ID
 }
 
+smpl_assert_no_pending_issue() { # UNCONFIRMED_ISSUE_ASSET_JSON
+  local transactions_json="$1"
+  python3 -c '
+import json, sys
+try:
+    transactions = json.loads(sys.argv[1])
+except json.JSONDecodeError:
+    print("SMPL faucet: pending ISSUE_ASSET search returned invalid JSON", file=sys.stderr)
+    raise SystemExit(1)
+if not isinstance(transactions, list):
+    print("SMPL faucet: pending ISSUE_ASSET search did not return a list", file=sys.stderr)
+    raise SystemExit(1)
+matches = [
+    transaction
+    for transaction in transactions
+    if isinstance(transaction, dict)
+    and transaction.get("type") == "ISSUE_ASSET"
+    and transaction.get("assetName") == sys.argv[2]
+]
+if matches:
+    print(
+        "SMPL faucet: found an unconfirmed SMPL issuance; wait for it to confirm "
+        "or expire before retrying",
+        file=sys.stderr,
+    )
+    raise SystemExit(1)
+' "$transactions_json" "$SMPL_ASSET_NAME"
+}
+
+smpl_assert_clean_deploy_slate() { # CONFIRMED_DEPLOY_AT_JSON UNCONFIRMED_DEPLOY_AT_JSON
+  local confirmed_json="$1" unconfirmed_json="$2"
+  python3 -c '
+import json, sys
+labels = ("confirmed", "unconfirmed")
+counts = []
+for label, raw in zip(labels, sys.argv[1:]):
+    try:
+        transactions = json.loads(raw)
+    except json.JSONDecodeError:
+        print("SMPL faucet: " + label + " DEPLOY_AT search returned invalid JSON", file=sys.stderr)
+        raise SystemExit(1)
+    if not isinstance(transactions, list):
+        print("SMPL faucet: " + label + " DEPLOY_AT search did not return a list", file=sys.stderr)
+        raise SystemExit(1)
+    counts.append(len(transactions))
+if any(counts):
+    print(
+        "SMPL faucet: Previewnet is no longer on the required clean deployment "
+        "slate (confirmed DEPLOY_AT="
+        + str(counts[0])
+        + ", unconfirmed DEPLOY_AT="
+        + str(counts[1])
+        + "); refusing to create another AT",
+        file=sys.stderr,
+    )
+    raise SystemExit(1)
+' "$confirmed_json" "$unconfirmed_json"
+}
+
 smpl_canonical_creation_bytes() { # REPO_ROOT
   local artifact="$1/at/faucet-v1-creation-bytes.txt" bytes hash
   local expected_hash=3cd6292352232c8243753b9ec3b5c78649088981804770133f8a7cc3228aec4e
