@@ -3,6 +3,8 @@
 set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+export CASINO_APIKEY=offline-test-key
+source "$SCRIPT_DIR/lib.sh"
 source "$SCRIPT_DIR/smpl-faucet-lib.sh"
 
 pass() { printf 'ok - %s\n' "$1"; }
@@ -42,6 +44,31 @@ smpl_is_missing_asset_response '{"error":601,"message":"Invalid asset ID"}' || f
 expect_fail smpl_is_missing_asset_response '{"error":4,"message":"Unauthorized"}'
 pass "only Core INVALID_ASSET_ID permits first issuance"
 
+smpl_assert_no_pending_issue '[]' || fail "empty pending issue list should pass"
+smpl_assert_no_pending_issue '[{"type":"ISSUE_ASSET","assetName":"OTHER"}]' || fail "unrelated pending issue should pass"
+expect_fail smpl_assert_no_pending_issue '[{"type":"ISSUE_ASSET","assetName":"SMPL"}]'
+expect_fail smpl_assert_no_pending_issue '{"error":1}'
+pass "pending SMPL issuance and malformed search responses refuse a retry"
+
+smpl_assert_clean_deploy_slate '[]' '[]' || fail "empty deployment slate should pass"
+expect_fail smpl_assert_clean_deploy_slate '[{"type":"DEPLOY_AT"}]' '[]'
+expect_fail smpl_assert_clean_deploy_slate '[]' '[{"type":"DEPLOY_AT"}]'
+expect_fail smpl_assert_clean_deploy_slate 'not-json' '[]'
+pass "confirmed, unconfirmed, and malformed deployment searches refuse deployment"
+
+ISSUE_RESULT='{"type":"ISSUE_ASSET","signature":"3MN5"}'
+transaction_assert_process_result "$ISSUE_RESULT" ISSUE_ASSET || fail "valid API v2 process response should pass"
+[ "$(transaction_json_field "$ISSUE_RESULT" signature)" = 3MN5 ] || fail "transaction field extraction"
+expect_fail transaction_assert_process_result true ISSUE_ASSET
+expect_fail transaction_assert_process_result '{"error":701,"message":"Transaction invalid"}' ISSUE_ASSET
+expect_fail transaction_assert_process_result '{"type":"DEPLOY_AT","signature":"3MN5"}' ISSUE_ASSET
+expect_fail transaction_assert_process_result '{"type":"ISSUE_ASSET"}' ISSUE_ASSET
+pass "process response must be API v2 JSON with expected type and signature"
+
+assert_base58 123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz "test value" || fail "valid base58 should pass"
+expect_fail assert_base58 '0OIl' "test value"
+pass "transaction stages reject non-base58 API error bodies"
+
 ISSUE=$(smpl_build_issue_request PUBKEY 123)
 [[ "$ISSUE" == *'"quantity": "1000"'* && "$ISSUE" == *'"fee": "0"'* && "$ISSUE" == *'"isDivisible": false'* ]] || fail "issue request fields"
 pass "issue request uses 1000 API units, zero fee, and indivisible SMPL"
@@ -52,3 +79,28 @@ pass "canonical byte artifact decodes to the pinned V1 SHA-256"
 DEPLOY=$(smpl_build_deploy_request PUBKEY 47 "$BYTES" 123)
 [[ "$DEPLOY" == *'"assetId": 47'* && "$DEPLOY" == *'"amount": "1000"'* && "$DEPLOY" == *'"nativeFeeReserve": "0"'* && "$DEPLOY" == *"\"creationBytes\": \"$BYTES\""* ]] || fail "deploy request fields"
 pass "deploy request uses canonical bytes, dynamic asset ID, 1000 SMPL, and zero native reserve"
+
+MOCK_CURL_LOG=$(mktemp)
+trap 'rm -f "$MOCK_CURL_LOG"' EXIT
+MOCK_PROCESS_TYPE=DEPLOY_AT
+curl() {
+  printf '%s\n' "$*" >>"$MOCK_CURL_LOG"
+  case "$*" in
+    *"/transactions/mempow/compute"*) printf '%s\n' 456 ;;
+    *"/transactions/sign"*) printf '%s\n' 789 ;;
+    *"/transactions/process"*)
+      printf '{"type":"%s","signature":"3MN5","atAddress":"A111111111111111111111111111111111"}\n' "$MOCK_PROCESS_TYPE"
+      ;;
+    *) return 1 ;;
+  esac
+}
+export SIGNER_PRIVATE_KEY=offline-private-key
+PROCESS_RESULT=$(mempow_sign_and_process 123 DEPLOY_AT) || fail "mocked MemPoW process should pass"
+[ "$(transaction_json_field "$PROCESS_RESULT" atAddress)" = A111111111111111111111111111111111 ] || fail "AT address should survive API v2 processing"
+grep -q -- '--fail-with-body' "$MOCK_CURL_LOG" || fail "curl must fail on HTTP errors"
+grep -q -- 'X-API-VERSION: 2' "$MOCK_CURL_LOG" || fail "process call must request API v2"
+pass "MemPoW processing fails on HTTP errors and requests the accepted transaction JSON"
+
+MOCK_PROCESS_TYPE=ISSUE_ASSET
+expect_fail mempow_sign_and_process 123 DEPLOY_AT
+pass "MemPoW processing refuses an accepted transaction of the wrong type"

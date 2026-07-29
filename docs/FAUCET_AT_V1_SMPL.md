@@ -126,10 +126,10 @@ zero deletes; GET reads target AT address from B, all-zero B = self).
 - Canonical creation bytes: `at/faucet-v1-creation-bytes.txt` (hex + Base58),
   regenerated-and-asserted by a unit test so the committed artifact can't drift
   from the builder. Core's e2e test embeds this hex with a provenance comment.
-- AT dependency: repin from `com.github.QuickMythril:AT:1b731d1` to
-  `com.github.QortiumDev:AT:33df17d` — the exact commit qortium-core pins for
-  consensus. (JitPack should build it on demand; fallback: `mvn
-  install:install-file` of Core's vendored `lib/…/AT-33df17d.jar`.)
+- AT dependency: repinned from `com.github.QuickMythril:AT:1b731d1` to
+  `com.github.QortiumDev:AT:0525eec` — the exact commit qortium-core pins for
+  consensus. CI installs Core's vendored `lib/…/AT-0525eec.jar` and POM from a
+  fixed Core commit after checking both SHA-256 hashes.
 
 ## Deployment (later, user-run)
 
@@ -139,9 +139,16 @@ it then finds or issues the exact fixed SMPL asset, looks up its chain-assigned
 asset ID, and deploys only the committed canonical creation bytes. The script is
 user-run because it signs with the treasury key.
 
+The bootstrap and standalone SMPL operator scripts refuse to continue if a
+matching SMPL issuance is already unconfirmed or if any confirmed/unconfirmed
+`DEPLOY_AT` exists on the clean Previewnet slate. Transaction submission uses
+Core API v2 and verifies the returned transaction type and signature. A
+successful deployment prints the deterministic `atAddress`; record that exact
+value before testing a claim.
+
 The deploy request is deliberately `fee: "0"` and `nativeFeeReserve: "0"`:
 Previewnet has no native asset. It prefunds `amount: "1000"` in the API's decimal
 format, which Core converts to `100_000_000_000` raw units for the indivisible
 asset. Do **not** deploy this AT pre-trigger: a pre-70,000 trust-query (and later map)
-call fatally errors the faucet on its first claim. After confirmation, record the AT address and make
-one real MESSAGE claim only after the user has approved that live acceptance step.
+call fatally errors the faucet on its first claim. After confirmation, make one
+real MESSAGE claim only after the user has approved that live acceptance step.

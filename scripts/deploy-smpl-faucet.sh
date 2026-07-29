@@ -15,6 +15,10 @@ INFO=$(api GET /admin/info)
 HEIGHT=$(api GET /blocks/height)
 smpl_assert_node_ready "$STATUS" "$INFO" "$HEIGHT"
 
+CONFIRMED_DEPLOYS=$(api GET "/transactions/search?txType=DEPLOY_AT&confirmationStatus=CONFIRMED&limit=20&reverse=true")
+UNCONFIRMED_DEPLOYS=$(api GET "/transactions/unconfirmed?txType=DEPLOY_AT")
+smpl_assert_clean_deploy_slate "$CONFIRMED_DEPLOYS" "$UNCONFIRMED_DEPLOYS"
+
 ASSET_INFO=$(api GET "/assets/info?assetId=$SMPL_ASSET_ID")
 VERIFIED_ASSET_ID=$(smpl_assert_asset_info "$ASSET_INFO")
 [ "$VERIFIED_ASSET_ID" = "$SMPL_ASSET_ID" ] || { echo "SMPL asset ID changed while validating; refusing deployment" >&2; exit 1; }
@@ -25,4 +29,14 @@ UNSIGNED=$(smpl_build_deploy_request "$CREATOR_PUBKEY" "$SMPL_ASSET_ID" "$CREATI
 echo "SMPL Faucet V1 deployment is valid: assetId=$SMPL_ASSET_ID, funding=$SMPL_SUPPLY SMPL, Bronze-or-higher claims only, fee=0, native reserve=0." >&2
 UNSIGNED=$(api POST /at "$UNSIGNED")
 echo "unsigned: ${UNSIGNED:0:60}..." >&2
-mempow_sign_and_process "$UNSIGNED"
+PROCESS_RESULT=$(mempow_sign_and_process "$UNSIGNED" DEPLOY_AT)
+AT_ADDRESS=$(transaction_json_field "$PROCESS_RESULT" atAddress) || {
+  echo "accepted DEPLOY_AT response did not include an AT address" >&2
+  exit 1
+}
+[[ "$AT_ADDRESS" =~ ^A[1-9A-HJ-NP-Za-km-z]{30,40}$ ]] || {
+  echo "accepted DEPLOY_AT response included an invalid AT address: $AT_ADDRESS" >&2
+  exit 1
+}
+echo "SMPL Faucet V1 deployment accepted: atAddress=$AT_ADDRESS" >&2
+printf '%s\n' "$AT_ADDRESS"
