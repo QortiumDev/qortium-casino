@@ -24,29 +24,29 @@ function accountAddress(account, data) {
 function render() {
   const { activationBlock, plannedSmplSupply, minimumTrust } = CASINO_CONFIG;
   const remaining = blocksRemaining(current.height, activationBlock);
-  const availability = getClaimAvailability({ ...current, minimumTrust });
+  const availability = getClaimAvailability({ ...current, minimumTrust, activationBlock });
   const belowActivation = current.phase === 'countdown';
 
   ui.blockCount.textContent = current.height === null ? '—' : belowActivation ? formatNumber(remaining) : 'OPEN';
   ui.blockCaption.textContent = current.height === null
     ? 'Connecting to Previewnet for the block count.'
-    : belowActivation ? `blocks until ${formatNumber(activationBlock)}. The roulette wheel is warming up.` : `Previewnet is at block ${formatNumber(current.height)}.`;
+    : belowActivation ? `blocks until ${formatNumber(activationBlock)}. The roulette wheel is warming up. Again.` : `Previewnet is at block ${formatNumber(current.height)}.`;
   ui.progress.style.width = current.height === null ? '0%' : `${Math.min(100, (current.height / activationBlock) * 100)}%`;
 
   const phaseCopy = {
     checking: ['loading', 'Checking the velvet rope…'],
-    countdown: ['countdown', 'THE DOORS OPEN AT BLOCK 70,000'],
-    'coming-soon': ['soon', 'BLOCK 70,000: ACHIEVED. VAULT: COMING VERY SOON.'],
+    countdown: ['countdown', `THE VAULT RE-OPENS AT BLOCK ${formatNumber(activationBlock)}`],
+    'coming-soon': ['soon', `BLOCK ${formatNumber(activationBlock)}: ACHIEVED. VAULT: COMING VERY SOON.`],
     claim: ['open', 'THE SMPL VAULT IS OPEN'],
   }[current.phase];
   ui.phaseBadge.className = `phase-badge ${phaseCopy[0]}`;
   ui.phaseBadge.textContent = phaseCopy[1];
 
-  ui.supplyLabel.textContent = current.faucetBalance === undefined ? 'PLANNED SMPL POOL' : 'SMPL REMAINING IN VAULT';
+  ui.supplyLabel.textContent = current.faucetBalance === undefined ? 'SMPL SEALED IN VAULT' : 'SMPL REMAINING IN VAULT';
   ui.supplyCount.textContent = formatNumber(current.faucetBalance ?? plannedSmplSupply);
   ui.supplyCaption.textContent = current.faucetBalance === undefined
-    ? '1,000 SMPL are planned for the opening ceremony.'
-    : 'Live read from the configured faucet AT.';
+    ? '1,000 SMPL confirmed into the vault at block 73,375. Sealed considerably harder than intended.'
+    : 'Live read from the deployed faucet AT.';
 
   const address = accountAddress(current.account, current.accountData);
   ui.accountName.textContent = address ? `${address.slice(0, 7)}…${address.slice(-6)}` : 'Open in Qortium Home';
@@ -58,7 +58,7 @@ function render() {
 
   const claimCopy = current.claimSent ? ['The message is on its way.', 'Home handled approval and signing. The vault will confirm it after the next refresh.'] : current.claimError ? ['The chandelier coughed.', current.claimError] : current.claimStatus === true ? ['Your SMPL already left the building.', 'This selected account has already received its one ceremonial SMPL.'] : {
     checking: ['The chandelier is calculating.', 'We are checking the current Previewnet block.'],
-    countdown: ['The doors are not open yet.', 'The countdown is real. The velvet rope is realer.'],
+    countdown: ['The doors are not open. Again.', 'The countdown is real. The velvet rope is realer. The hinge fees have been negotiated down to zero.'],
     'coming-soon': ['The chain says go. The vault says: almost.', 'The faucet address has not been configured yet. Please admire the chrome.'],
     claim: [availability.enabled ? 'Your ceremonial SMPL awaits.' : 'The bouncer has a clipboard.', availability.reason],
   }[current.phase];
@@ -109,7 +109,7 @@ async function refresh() {
 }
 
 ui.claimButton.addEventListener('click', async () => {
-  const availability = getClaimAvailability({ ...current, minimumTrust: CASINO_CONFIG.minimumTrust });
+  const availability = getClaimAvailability({ ...current, minimumTrust: CASINO_CONFIG.minimumTrust, activationBlock: CASINO_CONFIG.activationBlock });
   if (!availability.enabled) return;
   ui.claimButton.disabled = true;
   ui.claimButton.textContent = 'ASKING HOME…';
