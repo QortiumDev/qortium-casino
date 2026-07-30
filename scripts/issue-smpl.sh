@@ -13,7 +13,7 @@ INFO=$(api GET /admin/info)
 HEIGHT=$(api GET /blocks/height)
 smpl_assert_node_ready "$STATUS" "$INFO" "$HEIGHT"
 
-ASSET_INFO=$(api GET "/assets/info?assetName=$SMPL_ASSET_NAME")
+ASSET_INFO=$(api_read_or_error GET "/assets/info?assetName=$SMPL_ASSET_NAME")
 smpl_is_missing_asset_response "$ASSET_INFO" || {
   echo "SMPL already exists or its lookup failed; refusing a duplicate issuance: $ASSET_INFO" >&2
   exit 1

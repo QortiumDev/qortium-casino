@@ -25,7 +25,7 @@ assert_clean_deploy_slate
 PENDING_ISSUES=$(api GET "/transactions/unconfirmed?txType=ISSUE_ASSET&creator=$CASINO_TREASURY_PUBLIC_KEY")
 smpl_assert_no_pending_issue "$PENDING_ISSUES"
 
-ASSET_INFO=$(api GET "/assets/info?assetName=$SMPL_ASSET_NAME")
+ASSET_INFO=$(api_read_or_error GET "/assets/info?assetName=$SMPL_ASSET_NAME")
 if SMPL_ASSET_ID=$(smpl_assert_asset_info "$ASSET_INFO" 2>/dev/null); then
   echo "== SMPL already exists: assetId=$SMPL_ASSET_ID"
 elif smpl_is_missing_asset_response "$ASSET_INFO"; then
@@ -41,7 +41,7 @@ elif smpl_is_missing_asset_response "$ASSET_INFO"; then
   ASSET_INFO=""
   for i in $(seq 1 60); do
     sleep 10
-    ASSET_INFO=$(api GET "/assets/info?assetName=$SMPL_ASSET_NAME")
+    ASSET_INFO=$(api_read_or_error GET "/assets/info?assetName=$SMPL_ASSET_NAME")
     if SMPL_ASSET_ID=$(smpl_assert_asset_info "$ASSET_INFO" 2>/dev/null); then
       break
     fi
@@ -53,7 +53,7 @@ elif smpl_is_missing_asset_response "$ASSET_INFO"; then
   done
   [ -n "${SMPL_ASSET_ID:-}" ] || { echo "SMPL was not confirmed with the required fixed properties after 10 minutes" >&2; exit 1; }
 else
-  echo "An existing asset named SMPL does not match the required fixed faucet asset; refusing to issue or deploy." >&2
+  echo "The SMPL lookup was neither the required fixed faucet asset nor a 601 absent-asset response; refusing to issue or deploy: $ASSET_INFO" >&2
   exit 1
 fi
 

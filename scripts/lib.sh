@@ -20,6 +20,29 @@ api() { # api METHOD PATH [JSON_BODY]
   fi
 }
 
+# Read whose "absent" answer is an application error carried by an HTTP error
+# status: Core answers GET /assets/info for an unknown asset with 400
+# {"error":601}. Plain api() is strict by design and aborts there, which would
+# make every first-time deployment fail before it could issue the asset. This
+# keeps that strictness for transport failures while returning the error body so
+# the caller's own three-way branch decides what the body means. Never use it for
+# a call whose failure must stop the script outright.
+api_read_or_error() { # api_read_or_error METHOD PATH
+  local method="$1" path="$2" body status=0
+  # `|| status=$?` keeps this a compound command, so errexit neither aborts here
+  # nor has to be toggled: touching set -e would clobber the caller's own state.
+  body=$(api "$method" "$path" 2>/dev/null) || status=$?
+
+  # --fail-with-body prints the body and exits 22 for any HTTP >= 400; every
+  # other nonzero status is a transport/DNS/connection failure with no body.
+  if [ "$status" -ne 0 ] && [ "$status" -ne 22 ]; then
+    echo "Node read $method $path failed to reach $NODE (curl exit $status)" >&2
+    return 1
+  fi
+
+  printf '%s\n' "$body"
+}
+
 assert_base58() { # assert_base58 VALUE LABEL
   local value="$1" label="${2:-value}"
   [[ "$value" =~ ^[1-9A-HJ-NP-Za-km-z]+$ ]] || {
