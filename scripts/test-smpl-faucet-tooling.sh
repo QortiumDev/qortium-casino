@@ -104,3 +104,36 @@ pass "MemPoW processing fails on HTTP errors and requests the accepted transacti
 MOCK_PROCESS_TYPE=ISSUE_ASSET
 expect_fail mempow_sign_and_process 123 DEPLOY_AT
 pass "MemPoW processing refuses an accepted transaction of the wrong type"
+
+# --- absent-asset probe -------------------------------------------------------
+# Core answers GET /assets/info for an unknown asset with HTTP 400
+# {"error":601}. Strict api() aborts there, so before api_read_or_error every
+# first-time SMPL deployment died before it could issue. Exercise the real
+# curl contract (body on stdout, exit 22) rather than only the detector.
+unset -f curl
+curl() { printf '%s\n' '{"error":601,"message":"invalid asset ID"}'; return 22; }
+
+ABSENT=$(api_read_or_error GET "/assets/info?assetName=SMPL") \
+  || fail "an HTTP 400 application-error body must not abort the absence probe"
+[ "$ABSENT" = '{"error":601,"message":"invalid asset ID"}' ] \
+  || fail "absence probe must return the error body verbatim, got: $ABSENT"
+smpl_is_missing_asset_response "$ABSENT" \
+  || fail "the probed 400 body must be recognized as an absent asset"
+expect_fail smpl_assert_asset_info "$ABSENT"
+pass "absent SMPL returns Core's 601 body and routes to the issuance branch"
+
+# A real asset still reaches the caller unchanged through the same helper.
+curl() { printf '%s\n' '{"assetId":47,"name":"SMPL","quantity":100000000000,"isDivisible":false,"isUnspendable":false}'; }
+PRESENT=$(api_read_or_error GET "/assets/info?assetName=SMPL") || fail "a 200 probe must succeed"
+[ "$(smpl_assert_asset_info "$PRESENT")" = 47 ] || fail "present SMPL must still yield its asset ID"
+pass "present SMPL passes through the probe unchanged"
+
+# An unreachable node must stay fatal: it must not be mistaken for "absent" and
+# silently trigger an issuance.
+curl() { return 7; }
+expect_fail api_read_or_error GET "/assets/info?assetName=SMPL"
+UNREACHABLE=$(api_read_or_error GET "/assets/info?assetName=SMPL" 2>/dev/null || true)
+[ -z "$UNREACHABLE" ] || fail "a transport failure must not yield a body, got: $UNREACHABLE"
+expect_fail smpl_is_missing_asset_response "$UNREACHABLE"
+pass "an unreachable node fails the probe instead of reading as an absent asset"
+unset -f curl
