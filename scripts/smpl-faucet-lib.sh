@@ -227,3 +227,22 @@ smpl_build_deploy_request() { # CREATOR_PUBKEY ASSET_ID CREATION_BYTES TIMESTAMP
 }
 EOF
 }
+
+# Read the deployed AT address out of an accepted DEPLOY_AT process response.
+#
+# Core publishes it as `atAddress`. Nodes older than the 2026-07-30 API fix
+# (qortium-core PR #186) published the same value as `aTAddress`, because the
+# JSON key came straight from a Java field name that nobody had noticed was
+# inconsistent. Reading only `atAddress` is what made a fully successful faucet
+# deployment abort with "did not include an AT address" on 2026-07-30.
+#
+# Accept either key while 1.6.1 nodes are still in use; the released seeds and
+# most installed nodes will lag behind main for a while. Drop the `aTAddress`
+# fallback once no supported node publishes it.
+smpl_deployed_at_address() { # smpl_deployed_at_address PROCESS_RESULT_JSON
+  local process_result="$1" address
+  address=$(transaction_json_field "$process_result" atAddress 2>/dev/null) \
+    || address=$(transaction_json_field "$process_result" aTAddress 2>/dev/null) \
+    || return 1
+  printf '%s\n' "$address"
+}
