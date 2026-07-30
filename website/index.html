@@ -3,8 +3,8 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="description" content="Qortium Casino is almost certainly about to open." />
-    <title>Qortium Casino — Absolutely Coming Soon</title>
+    <meta name="description" content="Qortium Casino is almost certainly about to re-open." />
+    <title>Qortium Casino — Absolutely Re-Opening Soon</title>
     <link rel="stylesheet" href="./src/styles.css" />
   </head>
   <body>
@@ -18,7 +18,7 @@
         <span class="brand-tag">*probably*</span>
       </a>
       <nav aria-label="Casino sections">
-        <button class="tab active" data-tab="welcome" type="button">Grand Opening</button>
+        <button class="tab active" data-tab="welcome" type="button">Grand Re-Opening</button>
         <button class="tab" data-tab="backroom" type="button">Developer Backroom</button>
       </nav>
     </header>
@@ -26,7 +26,7 @@
     <main>
       <section id="welcome" class="page active" aria-labelledby="hero-heading">
         <div class="marquee" aria-label="Qortium Casino grand opening announcement">
-          <span>✦ RISK-FREE* EXCITEMENT ✦ ON-CHAIN GLAMOUR ✦ ONE (1) FREE SMPL ✦</span>
+          <span>✦ RISK-FREE* EXCITEMENT ✦ ON-CHAIN GLAMOUR ✦ ONE (1) FREE SMPL ✦ STEP FEES: WAIVED ✦</span>
         </div>
         <div class="hero-grid">
           <section class="hero-copy">
@@ -37,11 +37,18 @@
           </section>
           <section class="roulette-frame" aria-label="Decorative roulette wheel">
             <div class="roulette">
-              <span>Q</span><span>7</span><span>0</span><span>0</span><span>0</span><span>0</span><span>!</span><span>★</span>
+              <span>Q</span><span>8</span><span>0</span><span>0</span><span>0</span><span>0</span><span>!</span><span>★</span>
             </div>
-            <p>THE WHEEL OF<br /><strong>INEVITABILITY</strong></p>
+            <p>THE WHEEL OF<br /><strong>EVENTUALITY</strong></p>
           </section>
         </div>
+
+        <aside class="reschedule-notice" aria-labelledby="notice-heading">
+          <p class="card-label">OFFICIAL NOTICE OF RESCHEDULING</p>
+          <h3 id="notice-heading">The grand opening is now a grand re-opening.</h3>
+          <p>At block 70,000 the chain was ready. At block 73,375 the vault was delivered, inspected, and loaded with 1,000 SMPL. It was then discovered that every step of the vault mechanism carried a fee payable in Previewnet's native coin — a coin that has never existed. The vault, an honest machine, declined to take a single step it could not pay for.</p>
+          <p>Management (Core 1.6.2) has since negotiated the step fee down to zero for as long as the coin continues not to exist, effective block 80,000. The tokens are fine. They have been fine the entire time. They are simply behind a door whose hinges briefly demanded imaginary money.</p>
+        </aside>
 
         <section class="vault" aria-labelledby="vault-heading">
           <div class="vault-header">
@@ -51,15 +58,15 @@
           </div>
           <div class="vault-grid">
             <article class="display-card countdown-card">
-              <p class="card-label">GRAND OPENING IN</p>
+              <p class="card-label">GRAND RE-OPENING IN</p>
               <strong id="block-count" class="giant-number">—</strong>
               <p id="block-caption">Connecting to Previewnet for the block count.</p>
               <div class="meter"><span id="progress-meter"></span></div>
             </article>
             <article class="display-card supply-card">
-              <p class="card-label" id="supply-label">PLANNED SMPL POOL</p>
+              <p class="card-label" id="supply-label">SMPL SEALED IN VAULT</p>
               <strong id="supply-count" class="giant-number">1,000</strong>
-              <p id="supply-caption">SMPL await their dramatic entrance.</p>
+              <p id="supply-caption">SMPL are already inside. The door is the entire problem.</p>
               <div class="chip-row" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div>
             </article>
             <article class="display-card status-card">
@@ -72,15 +79,15 @@
           <article class="claim-console">
             <div>
               <p class="card-label">THE BUTTON OF DESTINY</p>
-              <h3 id="claim-title">The doors are not open yet.</h3>
-              <p id="claim-copy">The countdown is real. The velvet rope is realer.</p>
+              <h3 id="claim-title">The doors are not open. Again.</h3>
+              <p id="claim-copy">The countdown is real. The velvet rope is realer. The hinge fees have been negotiated down to zero.</p>
             </div>
             <button id="claim-button" class="claim-button" type="button" disabled>POLISHING THE BUTTON</button>
           </article>
-          <p id="history-note" class="history-note">Claim history becomes available once the faucet status endpoint ships. This site will not guess from your wallet balance.</p>
+          <p id="history-note" class="history-note">Once the vault is open, this site asks the contract's own claim ledger whether your selected account has already had its moment. It still will not guess from your wallet balance.</p>
         </section>
 
-        <p class="fine-print">*No financial value. No implied glamour. Bronze eligibility and one claim per account are enforced by the Faucet V1 contract once it is deployed. The roulette wheel is decorative and may be emotionally unavailable.</p>
+        <p class="fine-print">*No financial value. No implied glamour. Bronze eligibility and one claim per account are enforced by the deployed Faucet V1 contract. Previously scheduled for block 70,000; the house always opens, eventually. The roulette wheel is decorative and may be emotionally unavailable.</p>
       </section>
 
       <section id="backroom" class="page" aria-labelledby="backroom-heading" hidden>

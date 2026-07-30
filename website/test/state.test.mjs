@@ -2,18 +2,31 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { blocksRemaining, formatNumber, getCampaignPhase, getClaimAvailability, meetsMinimumTrust } from '../src/state.js';
 import { faucetClaimKeys } from '../src/bridge.js';
+import { CASINO_CONFIG, isFaucetConfigured } from '../src/config.js';
 
-const config = { activationBlock: 70000, faucetAtAddress: null, smplAssetId: null };
+const config = { activationBlock: 80000, faucetAtAddress: null, smplAssetId: null };
 
 test('campaign waits below activation, then honestly says coming soon without a faucet', () => {
-  assert.equal(getCampaignPhase(69999, config), 'countdown');
-  assert.equal(getCampaignPhase(70000, config), 'coming-soon');
-  assert.equal(blocksRemaining(69674, 70000), 326);
+  assert.equal(getCampaignPhase(79999, config), 'countdown');
+  assert.equal(getCampaignPhase(80000, config), 'coming-soon');
+  assert.equal(blocksRemaining(79674, 80000), 326);
 });
 
 test('campaign exposes claim only with both deployed identifiers', () => {
-  assert.equal(getCampaignPhase(70000, { ...config, faucetAtAddress: 'AT1', smplAssetId: 12 }), 'claim');
+  assert.equal(getCampaignPhase(80000, { ...config, faucetAtAddress: 'AT1', smplAssetId: 12 }), 'claim');
   assert.equal(getCampaignPhase(null, config), 'checking');
+});
+
+test('shipped config carries the deployed faucet and the re-opening height', () => {
+  assert.equal(isFaucetConfigured(CASINO_CONFIG), true);
+  assert.equal(CASINO_CONFIG.activationBlock, 80000);
+  assert.equal(CASINO_CONFIG.smplAssetId, 3);
+});
+
+test('countdown copy quotes the configured activation block, not a stale one', () => {
+  const availability = getClaimAvailability({ phase: 'countdown', activationBlock: config.activationBlock });
+  assert.equal(availability.enabled, false);
+  assert.match(availability.reason, /80,000/);
 });
 
 test('Bronze and higher are eligible only in Home after the faucet is live', () => {
