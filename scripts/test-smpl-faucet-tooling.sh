@@ -83,20 +83,21 @@ pass "deploy request uses canonical bytes, dynamic asset ID, 1000 SMPL, and zero
 MOCK_CURL_LOG=$(mktemp)
 trap 'rm -f "$MOCK_CURL_LOG"' EXIT
 MOCK_PROCESS_TYPE=DEPLOY_AT
+MOCK_AT_ADDRESS_KEY=atAddress
 curl() {
   printf '%s\n' "$*" >>"$MOCK_CURL_LOG"
   case "$*" in
     *"/transactions/mempow/compute"*) printf '%s\n' 456 ;;
     *"/transactions/sign"*) printf '%s\n' 789 ;;
     *"/transactions/process"*)
-      printf '{"type":"%s","signature":"3MN5","atAddress":"A111111111111111111111111111111111"}\n' "$MOCK_PROCESS_TYPE"
+      printf '{"type":"%s","signature":"3MN5","%s":"A111111111111111111111111111111111"}\n' "$MOCK_PROCESS_TYPE" "$MOCK_AT_ADDRESS_KEY" 
       ;;
     *) return 1 ;;
   esac
 }
 export SIGNER_PRIVATE_KEY=offline-private-key
 PROCESS_RESULT=$(mempow_sign_and_process 123 DEPLOY_AT) || fail "mocked MemPoW process should pass"
-[ "$(transaction_json_field "$PROCESS_RESULT" atAddress)" = A111111111111111111111111111111111 ] || fail "AT address should survive API v2 processing"
+[ "$(smpl_deployed_at_address "$PROCESS_RESULT")" = A111111111111111111111111111111111 ] || fail "AT address should survive API v2 processing"
 grep -q -- '--fail-with-body' "$MOCK_CURL_LOG" || fail "curl must fail on HTTP errors"
 grep -q -- 'X-API-VERSION: 2' "$MOCK_CURL_LOG" || fail "process call must request API v2"
 pass "MemPoW processing fails on HTTP errors and requests the accepted transaction JSON"
@@ -104,6 +105,31 @@ pass "MemPoW processing fails on HTTP errors and requests the accepted transacti
 MOCK_PROCESS_TYPE=ISSUE_ASSET
 expect_fail mempow_sign_and_process 123 DEPLOY_AT
 pass "MemPoW processing refuses an accepted transaction of the wrong type"
+
+# --- deployed AT address key ---------------------------------------------------
+# Core publishes `atAddress`; nodes before qortium-core PR #186 published the same
+# value as `aTAddress`. Reading only one key aborted a successful deployment. The
+# old mock emitted the same wrong key the script read, so the pair agreed with each
+# other and the defect was invisible — drive both keys explicitly instead.
+MOCK_PROCESS_TYPE=DEPLOY_AT
+MOCK_AT_ADDRESS_KEY=atAddress
+CURRENT=$(mempow_sign_and_process 123 DEPLOY_AT)
+[ "$(smpl_deployed_at_address "$CURRENT")" = A111111111111111111111111111111111 ] \
+  || fail "current Core atAddress must be read"
+pass "current Core publishes atAddress and it is read"
+
+MOCK_AT_ADDRESS_KEY=aTAddress
+LEGACY=$(mempow_sign_and_process 123 DEPLOY_AT)
+[ "$(smpl_deployed_at_address "$LEGACY")" = A111111111111111111111111111111111 ] \
+  || fail "legacy aTAddress must still be read while 1.6.1 nodes are in use"
+pass "legacy aTAddress node is still supported"
+
+# Neither key present must fail rather than yield an empty address.
+expect_fail smpl_deployed_at_address '{"type":"DEPLOY_AT","signature":"3MN5"}'
+[ -z "$(smpl_deployed_at_address '{"type":"DEPLOY_AT","signature":"3MN5"}' 2>/dev/null || true)" ] \
+  || fail "a response with no AT address key must not yield a value"
+pass "a DEPLOY_AT response carrying no AT address key is rejected"
+unset -f curl
 
 # --- absent-asset probe -------------------------------------------------------
 # Core answers GET /assets/info for an unknown asset with HTTP 400

@@ -30,8 +30,8 @@ echo "SMPL Faucet V1 deployment is valid: assetId=$SMPL_ASSET_ID, funding=$SMPL_
 UNSIGNED=$(api POST /at "$UNSIGNED")
 echo "unsigned: ${UNSIGNED:0:60}..." >&2
 PROCESS_RESULT=$(mempow_sign_and_process "$UNSIGNED" DEPLOY_AT)
-AT_ADDRESS=$(transaction_json_field "$PROCESS_RESULT" atAddress) || {
-  echo "accepted DEPLOY_AT response did not include an AT address" >&2
+AT_ADDRESS=$(smpl_deployed_at_address "$PROCESS_RESULT") || {
+  echo "accepted DEPLOY_AT response did not include an AT address under atAddress or the legacy aTAddress: $PROCESS_RESULT" >&2
   exit 1
 }
 [[ "$AT_ADDRESS" =~ ^A[1-9A-HJ-NP-Za-km-z]{30,40}$ ]] || {

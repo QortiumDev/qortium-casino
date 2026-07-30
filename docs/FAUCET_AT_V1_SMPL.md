@@ -143,8 +143,19 @@ The bootstrap and standalone SMPL operator scripts refuse to continue if a
 matching SMPL issuance is already unconfirmed or if any confirmed/unconfirmed
 `DEPLOY_AT` exists on the clean Previewnet slate. Transaction submission uses
 Core API v2 and verifies the returned transaction type and signature. A
-successful deployment prints the deterministic `atAddress`; record that exact
+successful deployment prints the deterministic AT address; record that exact
 value before testing a claim.
+
+Core publishes that address as `atAddress`. Nodes older than the 2026-07-30 API
+fix (qortium-core PR #186) published the same value as `aTAddress`, and reading
+only one of the two aborted an otherwise successful deployment on 2026-07-30,
+after both the asset and the AT had already confirmed. The scripts accept either
+key while 1.6.1 nodes remain in use. If a deployment ever aborts at this step
+again, check the chain before retrying rather than assuming it failed:
+`/transactions/search?txType=DEPLOY_AT&confirmationStatus=BOTH` and
+`/at/byfunction/{codeHash}` are the authoritative answers. Note there is no
+`/at/search` endpoint — that path resolves as an AT address lookup and answers
+empty for any input, so it proves nothing.
 
 The deploy request is deliberately `fee: "0"` and `nativeFeeReserve: "0"`:
 Previewnet has no native asset. It prefunds `amount: "1000"` in the API's decimal
