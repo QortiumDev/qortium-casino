@@ -62,6 +62,31 @@ export async function getFaucetBalance(address, assetId) {
     : localRead(path);
 }
 
+/**
+ * Reads the deployed AT, whose `assetId` is the working asset it was created with. Preferred
+ * over the bundled config value so the site never assumes an asset ID.
+ */
+export async function getFaucetAt(faucetAtAddress) {
+  const path = `/at/${encodeURIComponent(faucetAtAddress)}`;
+  return isHome()
+    ? unpackNodeRead(await qdnRequest({ action: 'FETCH_NODE_API', path, method: 'GET' }))
+    : localRead(path);
+}
+
+/**
+ * Returns the block height our claim MESSAGE confirmed in, or null while it is still
+ * unconfirmed (or unreadable). Home accepting a message is not the chain including it.
+ */
+export async function getTransactionHeight(signature) {
+  if (!signature) return null;
+  const path = `/transactions/signature/${encodeURIComponent(signature)}`;
+  const data = isHome()
+    ? unpackNodeRead(await qdnRequest({ action: 'FETCH_NODE_API', path, method: 'GET' }))
+    : await localRead(path);
+  const height = Number(data?.blockHeight);
+  return Number.isFinite(height) && height > 0 ? height : null;
+}
+
 function decodeBase58(value) {
   let decoded = 0n;
 
@@ -104,7 +129,21 @@ export async function getFaucetClaimStatus(faucetAtAddress, claimantAddress) {
     ? unpackNodeRead(await qdnRequest({ action: 'FETCH_NODE_API', path, method: 'GET' }))
     : await localRead(path);
 
-  return Number(entry?.value) !== 0;
+  // Insist on a real number. `Number(undefined) !== 0` is true, so a body we failed to parse
+  // used to read as "already claimed" — the one wrong answer that permanently locks an eligible
+  // guest out of a claim they never made. Throwing instead lets the caller say "unknown".
+  return readClaimMarker(entry);
+}
+
+export function readClaimMarker(entry) {
+  const raw = entry?.value;
+  // Reject null/undefined/'' explicitly: Number() maps all three to 0, which would report a
+  // body we could not read as a definite "not claimed".
+  const value = raw === null || raw === undefined || raw === '' ? Number.NaN : Number(raw);
+  if (!Number.isFinite(value)) {
+    throw new Error('The faucet claim ledger did not return a readable marker value.');
+  }
+  return value !== 0;
 }
 
 export async function sendClaimMessage(recipient) {

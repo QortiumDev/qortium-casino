@@ -46,3 +46,29 @@ jobs:
           files=$(git ls-files 'at/*creation-bytes.txt')
           test -n "$files"
           for f in $files; do test -s "$f"; done
+
+  # The campaign site's own suite — including the claim-outcome state machine and the claim-key
+  # derivation that must agree byte-for-byte with the deployed AT's in-bytecode SHA-256.
+  website:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set up Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+
+      - name: Test
+        run: npm test
+        working-directory: website
+
+      # dist/ is gitignored and built fresh at publish time, so the thing worth guarding is that
+      # the build actually runs and emits every file the bundle needs.
+      - name: Build the publishable bundle
+        working-directory: website
+        run: |
+          npm run build
+          for f in index.html src/app.js src/bridge.js src/config.js src/state.js src/styles.css; do
+            test -s "dist/$f" || { echo "missing or empty: dist/$f"; exit 1; }
+          done
