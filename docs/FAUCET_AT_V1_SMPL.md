@@ -45,12 +45,47 @@ Per claim, strictly:
    status below `BRONZE=1` ⇒ ignore **without reading or writing the map**.
 2. `GET` claim key (self, B all-zero) — nonzero ⇒ already claimed ⇒ ignore.
 3. Balance check — spendable SMPL < grant ⇒ ignore **without writing a marker**
-   (an account must never be marked claimed and unpaid; claims resume on top-up).
+   (an account must never be marked claimed and unpaid; the account stays eligible
+   and can claim again once the faucet is topped up).
 4. `SET` marker = 1.
 5. `GET` readback — zero ⇒ the SET was cap-rejected ⇒ ignore (no payment).
 6. `PAY_ASSET_AMOUNT_TO_B` 1 SMPL to the sender.
 
 A failed map write must never pay, and a payment must never precede its marker.
+
+**"Ignore" means the message is consumed, not retried.** The main loop advances its
+cursor (step 4 below) *before* any filtering, so every transaction is considered
+exactly once — that is what makes the scan terminate. A declined claim therefore
+leaves no marker, no payment, and no on-chain error of any kind, and it is gone: the
+account remains eligible but **must send a new MESSAGE**. Nothing is re-driven when
+the faucet is topped up or the map cap is later raised.
+
+### How a client tells "declined" from "still queued"
+
+Clients must not present a declined claim as pending indefinitely, but they must not
+guess either — a successful claim costs 489 of 500 steps, so the AT settles at most
+**one claim per block** and an ordinary backlog can take many blocks to drain. A
+timeout would therefore report false refusals during a rush.
+
+There is an exact answer instead. The AT's `sleepUntilMessageTimestamp` (exposed by
+`GET /at/{address}`) is the CIYAM AT "timestamp" of the last transaction its scan
+consumed, and such a timestamp packs the **block height into its high 32 bits**
+(then 8 bits of blockchain ID and 24 bits of intra-block sequence — see
+`org.ciyam.at.Timestamp`). So `sleepUntilMessageTimestamp >>> 32` is the block the
+faucet has scanned up to. Given a claim MESSAGE confirmed in block `H`:
+
+- cursor `> H` ⇒ the faucet has definitely looked at that message and recorded
+  nothing ⇒ **declined**, and it will never be revisited;
+- cursor `<= H` ⇒ still queued (equal is ambiguous by intra-block sequence, so it
+  must be treated as queued);
+- cursor unreadable ⇒ unknown; stay pending, never infer a refusal.
+
+Two further distinctions matter. A wallet accepting and signing the MESSAGE is not
+the chain including it, so a client must resolve the claim's confirmation height
+(`GET /transactions/signature/{signature}`) before comparing at all. And claim state
+belongs to the *account that sent it* — a wallet that can switch selected accounts
+must not let the next account inherit it. `getClaimOutcome()` in
+`website/src/state.js` implements all of this.
 
 ## Main loop (extends FaucetV0's builder pattern)
 
@@ -105,8 +140,9 @@ zero deletes; GET reads target AT address from B, all-zero B = self).
    cap-rejected-SET-as-no-op. Cases: first claim pays exactly 1 SMPL raw and
    records the marker; Bronze/Silver/Gold accounts are eligible while Unverified
    and Suspicious accounts leave no marker or payment; second claim from the same
-   account is ignored; distinct accounts each get one; unfunded claim leaves NO marker and later succeeds
-   after top-up; cap-full claim leaves no marker and pays nothing; creator
+   account is ignored; distinct accounts each get one; unfunded claim leaves NO marker and a
+   *subsequent* claim message succeeds after top-up (the unfunded message itself is not
+   re-driven); cap-full claim leaves no marker and pays nothing; creator
    message sweeps balance and finishes; non-MESSAGE txs skipped; step count
    asserted under budget.
 2. **End-to-end (qortium-core)**: embed the canonical creation bytes (below) in

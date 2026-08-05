@@ -9,6 +9,9 @@ export const CASINO_CONFIG = Object.freeze({
   // Faucet V1, confirmed at Previewnet block 73,375 with 1,000 SMPL prefunded.
   // Values read from the confirmed DEPLOY_AT; do not change without a redeploy.
   faucetAtAddress: 'AG9QWs1tEBTmXoH2rrQXwV4LdMAM99o5WD',
+  // FALLBACK ONLY. The spec is explicit that nothing may assume SMPL is asset 3, so the site
+  // reads the deployed AT's own `assetId` at runtime and uses this value only when that read
+  // fails. See resolveAssetId() in state.js.
   smplAssetId: 3,
 });
 
